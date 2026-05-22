@@ -1,0 +1,44 @@
+# Archives
+*.zip
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+~$*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Output / data (not for version control)
+Codes/Empirical/
+Codes/trash/
+Codes/regime_sim/
+Codes/Simulation/output/
+Codes/Simulation/logs/
+Codes/Simulation/R/
+Codes/Simulation/check_results_output.txt
+Codes/Simulation/teminal_log.txt
+
+# Large / sensitive data files
+*.npz
+*.pkl
+*.xlsx
+*.eml
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg

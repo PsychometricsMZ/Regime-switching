@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"c:/Users/kento/OneDrive - UT Cloud \\(1\\)/PhD/Regime-switching/psychometrika_revision/response_letter/\")",
+      "Bash(unzip -o \"c:/Users/kento/OneDrive - UT Cloud \\(1\\)/PhD/Regime-switching/psychometrika_revision/Frequentist_forecasting_in_regime_switching_models_with_extended_Hamilton_filter__full__revision.zip\" \"*.tex\" -d \"/tmp/manuscript_tex/\")"
+    ]
+  }
+}
