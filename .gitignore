@@ -27,6 +27,9 @@ Codes/Simulation/R/
 Codes/Simulation/check_results_output.txt
 Codes/Simulation/teminal_log.txt
 
+# Manuscript / revision materials (local only)
+psychometrika_revision/
+
 # Large / sensitive data files
 *.npz
 *.pkl
