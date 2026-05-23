@@ -590,8 +590,9 @@ def _filtering_two_stage(
     q2_diag_best = np.full(U1, np.nan, dtype=np.float32)
     theta_start = None
     overall_best = None
-    overall_best_ll = -np.inf
+    overall_best_ll  = -np.inf
     overall_best_traj = None
+    no_improve_count = 0       # consecutive outer loops without improvement
 
     for outer_iter in range(two_stage_outer_loops):
         theta = _make_theta(theta_start)
@@ -708,13 +709,17 @@ def _filtering_two_stage(
         offset_shift = np.max(np.abs(zeta_offsets_np - previous_offsets))
 
         theta_start = theta_best
-        if sumLL_best > overall_best_ll:
+        if sumLL_best > overall_best_ll + 1e-6:
             overall_best_ll = sumLL_best
             overall_best = theta_best
             overall_best_traj = traj_results
             q2_diag_best = q2_diag_now.copy()
+            no_improve_count = 0
+        else:
+            no_improve_count += 1
 
-        if offset_shift < 1e-4 and outer_iter > 0:
+        # Convergence: stop after 3 consecutive outer loops without improvement
+        if no_improve_count >= 3:
             break
 
     if overall_best is None:

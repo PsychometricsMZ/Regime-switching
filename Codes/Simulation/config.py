@@ -17,7 +17,7 @@ config["N_CONDITIONS"] = [50, 100]   # Sample size conditions (revised from [75,
 config["N_SIM"] = 100                # Number of simulations for each condition
 config["MAX_INIT_ATTEMPTS"] = 5      # Maximum attempts to try different initial values (Best of N)
 config["FILTER_METHODS"] = ["two_stage"]
-config["TWO_STAGE_OUTER_LOOPS"] = 3
+config["TWO_STAGE_OUTER_LOOPS"] = 50  # Hard cap; actual stopping by 3-consecutive-no-improvement criterion
 config["TWO_STAGE_DAMPING"] = 0.5
 
 # --- Data Generation Dimensions ---
