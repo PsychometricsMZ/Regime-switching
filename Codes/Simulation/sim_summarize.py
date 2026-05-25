@@ -32,6 +32,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from sim_utils import load_true_parameters2
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +108,16 @@ def parse_pkl(pkl_path):
             continue
 
         n_converged += 1
-        estimates.append(est_df.set_index("Parameter")["Estimate"])
+        est_series = est_df.set_index("Parameter")["Estimate"]
+
+        # P2 is estimated via a moment estimator outside the main optimisation
+        # and stored separately — append it manually so it appears in the
+        # parameter recovery table (cf. Manuscript Table A5).
+        p2_val = res.get("P2_estimated")
+        if p2_val is not None and np.isfinite(float(p2_val)):
+            est_series = pd.concat([est_series, pd.Series({"P2": float(p2_val)})])
+
+        estimates.append(est_series)
         ll_list.append(res.get("ll", np.nan))
 
         met = res.get("metrics")
@@ -214,7 +224,7 @@ def main():
     save_dir   = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    true_params = load_true_params(args.true_params_file)
+    true_params = load_true_parameters2(args.true_params_file)
 
     pkl_files = sorted(output_dir.glob("sim_results_*.pkl"))
     if not pkl_files:
@@ -293,7 +303,7 @@ def main():
         # --- Save initialization CSV ---
         if not est_summary.empty:
             init_df = build_init_csv(
-                est_summary[["Parameter", "Mean", "SE"]].rename(columns={"Mean": "Mean"})
+                est_summary[["Parameter", "Mean", "SD", "SE"]]
             )
             init_path = save_dir / f"init_params_{tag}.csv"
             init_df.to_csv(init_path, index=False)

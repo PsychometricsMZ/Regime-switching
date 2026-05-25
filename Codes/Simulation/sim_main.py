@@ -9,7 +9,7 @@ import torch
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from config import config
-from supp_functs import load_true_parameters2
+from sim_utils import load_true_parameters2
 from sim_data_generation import generate_sim_data
 from sim_filtering import filtering
 
