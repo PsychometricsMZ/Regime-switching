@@ -11,6 +11,10 @@ from scipy.stats import truncnorm
 # Helper utilities
 # ==============================================================================
 
+GAMMA1_FIXED = 4.5951      # logit(0.99) = log(99); fixed for identification
+                            # Enforces P(regime 1 at t=0) ≈ 0.99 (Rubicon prior)
+
+
 def torch_diag_from_vector(x):
     return torch.diag(x)
 
@@ -142,7 +146,7 @@ def _forward_filter_pass_two_stage(
     B3_is = B3_s_diag.unsqueeze(0) + B4_s_diag.unsqueeze(0) * eta2_expanded_B3B4
     B3_is_T = B3_is.transpose(-1, -2)
 
-    P12 = 0.1 * torch.sigmoid(theta["logit_P12_b"])
+    P12 = torch.sigmoid(theta["logit_P12_b"])
 
     # ------------------------------------------------------------------
     # History lists
@@ -562,11 +566,12 @@ def _filtering_two_stage(
         gamma2_0 = float(np.random.normal(0, 0.3))
         gamma3_0 = np.random.normal(0, 0.3, U1)
         gamma4_0 = np.random.normal(0, 0.1, U1)
-        # P12 bounded in (0, 0.1): sample from Unif(0.01, 0.09), back-transform
-        p12_init = float(np.random.uniform(0.01, 0.09))
-        logit_p12_b_0 = float(np.log(p12_init / (0.1 - p12_init)))
+        # P12 free in (0, 1): sample from Unif(0.01, 0.10), back-transform
+        p12_init = float(np.random.uniform(0.01, 0.10))
+        logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
 
         return {
+            "gamma1":        torch.tensor([gamma1_0],               dtype=dtype, device=device, requires_grad=True),
             "B11":           torch.tensor(B11_0,                    dtype=dtype, device=device, requires_grad=True),
             "log_B12_delta": torch.tensor(np.log(Delta_B12_0 + epsilon), dtype=dtype, device=device, requires_grad=True),
             "B21":           torch.tensor(B21_0,                    dtype=dtype, device=device, requires_grad=True),
@@ -578,7 +583,6 @@ def _filtering_two_stage(
             "log_Q1d":       torch.tensor(np.log(init_q1d),         dtype=dtype, device=device, requires_grad=True),
             "log_R1d":       torch.tensor(np.log(init_r1d),         dtype=dtype, device=device, requires_grad=True),
             "log_R2d":       torch.tensor(np.log(R2d_0),            dtype=dtype, device=device, requires_grad=True),
-            "gamma1":        torch.tensor([gamma1_0],               dtype=dtype, device=device, requires_grad=True),
             "gamma2":        torch.tensor(gamma2_0,                 dtype=dtype, device=device, requires_grad=True),
             "gamma3":        torch.tensor(gamma3_0,                 dtype=dtype, device=device, requires_grad=True),
             "gamma4":        torch.tensor(gamma4_0,                 dtype=dtype, device=device, requires_grad=True),
@@ -777,11 +781,11 @@ def _filtering_two_stage(
         ~final_estimates_df["Parameter"].str.contains(r"^log_B12_delta", regex=True)
     ].reset_index(drop=True)
 
-    # Back-transform logit_P12_b → P12 = 0.1 * sigmoid(logit_P12_b)
+    # Back-transform logit_P12_b → P12 = sigmoid(logit_P12_b)
     mask_p12 = final_estimates_df["Parameter"] == "logit_P12_b"
     if mask_p12.any():
         logit_val = final_estimates_df.loc[mask_p12, "Estimate"].values[0]
-        final_estimates_df.loc[mask_p12, "Estimate"] = 0.1 * float(torch.sigmoid(torch.tensor(logit_val)).item())
+        final_estimates_df.loc[mask_p12, "Estimate"] = float(torch.sigmoid(torch.tensor(logit_val)).item())
         final_estimates_df.loc[mask_p12, "Parameter"] = "P12"
 
     # Insert Q2 diagonal from the between-level moment estimator

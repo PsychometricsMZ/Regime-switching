@@ -1,0 +1,7 @@
+Parameter,Idx,True_Value,"$\mathcal{D}_{50,25}$ Bias","$\mathcal{D}_{50,25}$ RMSE","$\mathcal{D}_{100,25}$ Bias","$\mathcal{D}_{100,25}$ RMSE","$\mathcal{D}_{50,50}$ Bias","$\mathcal{D}_{50,50}$ RMSE","$\mathcal{D}_{100,50}$ Bias","$\mathcal{D}_{100,50}$ RMSE"
+$\bm{R}_1$,1,0.23,-0.0019,0.0132,NA,NA,NA,NA,NA,NA
+$\bm{R}_1$,2,0.21,0.033,0.033,NA,NA,NA,NA,NA,NA
+$\bm{R}_1$,3,0.16,0.0043,0.0051,NA,NA,NA,NA,NA,NA
+$\bm{R}_1$,4,0.61,-0.0213,0.0228,NA,NA,NA,NA,NA,NA
+$\bm{R}_2$,1,0.82,5.5942,8.511,NA,NA,NA,NA,NA,NA
+$\bm{R}_2$,2,0.73,5.3654,8.1205,NA,NA,NA,NA,NA,NA
