@@ -90,6 +90,10 @@ def run_one_simulation(args):
                     method=method,
                     two_stage_outer_loops=config["TWO_STAGE_OUTER_LOOPS"],
                     two_stage_damping=config["TWO_STAGE_DAMPING"],
+                    fix_gamma3=True,
+                    fix_gamma4=True,
+                    fix_p12=True,
+                    p12_fixed_value=1e-12,
                 )
             except Exception as e:
                 print(f"     !!! Sim {i} Attempt {init_attempt} Error in filtering: {e}")
