@@ -57,6 +57,10 @@ def _forward_filter_pass_two_stage(
     zeta_offsets,
     device,
     dtype,
+    fix_gamma3=False,
+    fix_gamma4=False,
+    fix_p12=False,
+    p12_fixed_value=1e-12,
 ):
     epsilon = 1e-12
     const = (2 * math.pi) ** (-O1 / 2)
@@ -72,8 +76,8 @@ def _forward_filter_pass_two_stage(
 
     gamma1 = theta["gamma1"]
     gamma2 = theta["gamma2"]
-    gamma3 = theta["gamma3"]
-    gamma4 = theta["gamma4"]
+    gamma3 = theta.get("gamma3", torch.zeros(U1, dtype=dtype, device=device))
+    gamma4 = theta.get("gamma4", torch.zeros(U1, dtype=dtype, device=device))
 
     log_Q1d = theta["log_Q1d"]
     log_R1d = theta["log_R1d"]
@@ -146,7 +150,9 @@ def _forward_filter_pass_two_stage(
     B3_is = B3_s_diag.unsqueeze(0) + B4_s_diag.unsqueeze(0) * eta2_expanded_B3B4
     B3_is_T = B3_is.transpose(-1, -2)
 
-    P12 = torch.sigmoid(theta["logit_P12_b"])
+    P12 = (torch.tensor(p12_fixed_value, dtype=dtype, device=device)
+          if fix_p12
+          else torch.sigmoid(theta["logit_P12_b"]))
 
     # ------------------------------------------------------------------
     # History lists
@@ -512,6 +518,10 @@ def _filtering_two_stage(
     device="cpu",
     two_stage_outer_loops=3,
     two_stage_damping=0.5,
+    fix_gamma3=False,
+    fix_gamma4=False,
+    fix_p12=False,
+    p12_fixed_value=1e-12,
 ):
     torch.manual_seed(seed + init)
     np.random.seed(seed + init)
@@ -570,7 +580,7 @@ def _filtering_two_stage(
         p12_init = float(np.random.uniform(0.01, 0.10))
         logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
 
-        return {
+        d = {
             "gamma1":        torch.tensor([gamma1_0],               dtype=dtype, device=device, requires_grad=True),
             "B11":           torch.tensor(B11_0,                    dtype=dtype, device=device, requires_grad=True),
             "log_B12_delta": torch.tensor(np.log(Delta_B12_0 + epsilon), dtype=dtype, device=device, requires_grad=True),
@@ -584,10 +594,14 @@ def _filtering_two_stage(
             "log_R1d":       torch.tensor(np.log(init_r1d),         dtype=dtype, device=device, requires_grad=True),
             "log_R2d":       torch.tensor(np.log(R2d_0),            dtype=dtype, device=device, requires_grad=True),
             "gamma2":        torch.tensor(gamma2_0,                 dtype=dtype, device=device, requires_grad=True),
-            "gamma3":        torch.tensor(gamma3_0,                 dtype=dtype, device=device, requires_grad=True),
-            "gamma4":        torch.tensor(gamma4_0,                 dtype=dtype, device=device, requires_grad=True),
-            "logit_P12_b":   torch.tensor([logit_p12_b_0],         dtype=dtype, device=device, requires_grad=True),
         }
+        if not fix_gamma3:
+            d["gamma3"] = torch.tensor(gamma3_0, dtype=dtype, device=device, requires_grad=True)
+        if not fix_gamma4:
+            d["gamma4"] = torch.tensor(gamma4_0, dtype=dtype, device=device, requires_grad=True)
+        if not fix_p12:
+            d["logit_P12_b"] = torch.tensor([logit_p12_b_0], dtype=dtype, device=device, requires_grad=True)
+        return d
 
     zeta_offsets_np = np.zeros((N, U1), dtype=np.float32)
     q2_diag_np = np.ones(U1, dtype=np.float32)
@@ -629,6 +643,10 @@ def _filtering_two_stage(
                 zeta_offsets=zeta_offsets_tensor,
                 device=device,
                 dtype=dtype,
+                fix_gamma3=fix_gamma3,
+                fix_gamma4=fix_gamma4,
+                fix_p12=fix_p12,
+                p12_fixed_value=p12_fixed_value,
             )
 
             loss = -torch.nanmean(out["mLL"][:, :n_train])
@@ -677,6 +695,10 @@ def _filtering_two_stage(
                 zeta_offsets=torch.tensor(zeta_offsets_np, dtype=dtype, device=device),
                 device=device,
                 dtype=dtype,
+                fix_gamma3=fix_gamma3,
+                fix_gamma4=fix_gamma4,
+                fix_p12=fix_p12,
+                p12_fixed_value=p12_fixed_value,
             )
 
         mEta_best = out_best["mEta"]
@@ -788,6 +810,22 @@ def _filtering_two_stage(
         final_estimates_df.loc[mask_p12, "Estimate"] = float(torch.sigmoid(torch.tensor(logit_val)).item())
         final_estimates_df.loc[mask_p12, "Parameter"] = "P12"
 
+    # Add fixed parameters as constant rows
+    if fix_gamma3:
+        for k in range(1, U1 + 1):
+            final_estimates_df = pd.concat([final_estimates_df,
+                pd.DataFrame({"Parameter": [f"gamma3_{k}"], "Estimate": [0.0], "SE": [np.nan]})],
+                ignore_index=True)
+    if fix_gamma4:
+        for k in range(1, U1 + 1):
+            final_estimates_df = pd.concat([final_estimates_df,
+                pd.DataFrame({"Parameter": [f"gamma4_{k}"], "Estimate": [0.0], "SE": [np.nan]})],
+                ignore_index=True)
+    if fix_p12:
+        final_estimates_df = pd.concat([final_estimates_df,
+            pd.DataFrame({"Parameter": ["P12"], "Estimate": [p12_fixed_value], "SE": [np.nan]})],
+            ignore_index=True)
+
     # Insert Q2 diagonal from the between-level moment estimator
     for dim_idx, q2_est in enumerate(q2_diag_best, start=1):
         new_row = pd.DataFrame({
@@ -836,6 +874,10 @@ def filtering(
     method="two_stage",
     two_stage_outer_loops=3,
     two_stage_damping=0.5,
+    fix_gamma3=False,
+    fix_gamma4=False,
+    fix_p12=False,
+    p12_fixed_value=1e-12,
 ):
     if method != "two_stage":
         raise ValueError(
@@ -863,4 +905,8 @@ def filtering(
         device=device,
         two_stage_outer_loops=two_stage_outer_loops,
         two_stage_damping=two_stage_damping,
+        fix_gamma3=fix_gamma3,
+        fix_gamma4=fix_gamma4,
+        fix_p12=fix_p12,
+        p12_fixed_value=p12_fixed_value,
     )
