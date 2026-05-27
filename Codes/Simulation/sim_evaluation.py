@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg" if "--no-show" in sys.argv else "TkAgg")
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
