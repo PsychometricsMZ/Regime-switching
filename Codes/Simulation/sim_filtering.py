@@ -522,6 +522,7 @@ def _filtering_two_stage(
     fix_gamma4=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
+    sim_prior=None,
 ):
     torch.manual_seed(seed + init)
     np.random.seed(seed + init)
@@ -554,46 +555,73 @@ def _filtering_two_stage(
                 for k, v in theta_source.items()
             }
 
-        B11_0 = np.random.normal(0, 0.5, U1)
-        Delta_B12_0 = rtruncnorm_positive(U1, mean=0, sd=0.5)
-        B21_0 = np.random.normal(0, 0.3, U1)
-        Delta_B22_0 = np.random.normal(0, 0.3, U1)
-        B22_0 = B21_0 + Delta_B22_0
-        B31d_0 = np.random.uniform(0.1, 0.8, U1)
-        B32d_0 = np.random.uniform(0.1, 0.8, U1)
-        B41d_0 = np.random.normal(0, 0.1, U1)
-        Delta_B42_0 = np.random.normal(0, 0.1, U1)
-        B42d_0 = B41d_0 + Delta_B42_0
+        if sim_prior is not None:
+            # Kelava warm start: sample from Normal(mean, sd) using prior CSV
+            def _sp(key):  # returns (mean_arr, sd_arr)
+                return sim_prior[key]['mean'], sim_prior[key]['sd']
 
-        init_q1d_precision = np.random.gamma(shape=9, scale=1 / 4, size=U1)
-        init_q1d = 1 / (init_q1d_precision + epsilon)
-        init_r1d_precision = np.random.gamma(shape=9, scale=1 / 4, size=O1)
-        init_r1d = 1 / (init_r1d_precision + epsilon)
-        R2d_0 = 1 / (np.random.gamma(shape=9, scale=1 / 4, size=O2) + epsilon)
-        R2d_0[R2d_0 < epsilon] = epsilon
-
-        gamma1_0 = float(truncnorm.rvs(0, np.inf, loc=0, scale=1))  # TruncN+(0,1)
-        gamma2_0 = float(np.random.normal(0, 0.3))
-        gamma3_0 = np.random.normal(0, 0.3, U1)
-        gamma4_0 = np.random.normal(0, 0.1, U1)
-        # P12 free in (0, 1): sample from Unif(0.01, 0.10), back-transform
-        p12_init = float(np.random.uniform(0.01, 0.10))
-        logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
+            m, s = _sp('gamma1')
+            gamma1_0 = float(truncnorm.rvs(0, np.inf, loc=m, scale=s))
+            m, s = _sp('gamma2')
+            gamma2_0 = float(np.random.normal(m, s))
+            gamma3_0 = np.random.normal(*_sp('gamma3'))
+            gamma4_0 = np.random.normal(*_sp('gamma4'))
+            B11_0 = np.random.normal(*_sp('B11'))
+            Delta_B12_raw = np.random.normal(*_sp('log_B12_delta'))
+            B21_0 = np.random.normal(*_sp('B21'))
+            B22_0 = np.random.normal(*_sp('B22'))
+            B31d_0 = np.random.normal(*_sp('B31d'))
+            B32d_0 = np.random.normal(*_sp('B32d'))
+            B41d_0 = np.random.normal(*_sp('B41d'))
+            B42d_0 = np.random.normal(*_sp('B42d'))
+            log_Q1d_0 = np.random.normal(*_sp('log_Q1d'))
+            log_R1d_0 = np.random.normal(*_sp('log_R1d'))
+            log_R2d_0 = np.random.normal(*_sp('log_R2d'))
+            # P12 free: sample from Unif(0.01, 0.10), back-transform (unchanged)
+            p12_init = float(np.random.uniform(0.01, 0.10))
+            logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
+        else:
+            B11_0 = np.random.normal(0, 0.5, U1)
+            Delta_B12_raw = np.log(rtruncnorm_positive(U1, mean=0, sd=0.5) + epsilon)
+            B21_0 = np.random.normal(0, 0.3, U1)
+            Delta_B22_0 = np.random.normal(0, 0.3, U1)
+            B22_0 = B21_0 + Delta_B22_0
+            B31d_0 = np.random.uniform(0.1, 0.8, U1)
+            B32d_0 = np.random.uniform(0.1, 0.8, U1)
+            B41d_0 = np.random.normal(0, 0.1, U1)
+            Delta_B42_0 = np.random.normal(0, 0.1, U1)
+            B42d_0 = B41d_0 + Delta_B42_0
+            init_q1d_precision = np.random.gamma(shape=9, scale=1 / 4, size=U1)
+            init_q1d = 1 / (init_q1d_precision + epsilon)
+            log_Q1d_0 = np.log(init_q1d)
+            init_r1d_precision = np.random.gamma(shape=9, scale=1 / 4, size=O1)
+            init_r1d = 1 / (init_r1d_precision + epsilon)
+            log_R1d_0 = np.log(init_r1d)
+            R2d_0 = 1 / (np.random.gamma(shape=9, scale=1 / 4, size=O2) + epsilon)
+            R2d_0[R2d_0 < epsilon] = epsilon
+            log_R2d_0 = np.log(R2d_0)
+            gamma1_0 = float(truncnorm.rvs(0, np.inf, loc=0, scale=1))  # TruncN+(0,1)
+            gamma2_0 = float(np.random.normal(0, 0.3))
+            gamma3_0 = np.random.normal(0, 0.3, U1)
+            gamma4_0 = np.random.normal(0, 0.1, U1)
+            # P12 free in (0, 1): sample from Unif(0.01, 0.10), back-transform
+            p12_init = float(np.random.uniform(0.01, 0.10))
+            logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
 
         d = {
-            "gamma1":        torch.tensor([gamma1_0],               dtype=dtype, device=device, requires_grad=True),
-            "B11":           torch.tensor(B11_0,                    dtype=dtype, device=device, requires_grad=True),
-            "log_B12_delta": torch.tensor(np.log(Delta_B12_0 + epsilon), dtype=dtype, device=device, requires_grad=True),
-            "B21":           torch.tensor(B21_0,                    dtype=dtype, device=device, requires_grad=True),
-            "B22":           torch.tensor(B22_0,                    dtype=dtype, device=device, requires_grad=True),
-            "B31d":          torch.tensor(B31d_0,                   dtype=dtype, device=device, requires_grad=True),
-            "B32d":          torch.tensor(B32d_0,                   dtype=dtype, device=device, requires_grad=True),
-            "B41d":          torch.tensor(B41d_0,                   dtype=dtype, device=device, requires_grad=True),
-            "B42d":          torch.tensor(B42d_0,                   dtype=dtype, device=device, requires_grad=True),
-            "log_Q1d":       torch.tensor(np.log(init_q1d),         dtype=dtype, device=device, requires_grad=True),
-            "log_R1d":       torch.tensor(np.log(init_r1d),         dtype=dtype, device=device, requires_grad=True),
-            "log_R2d":       torch.tensor(np.log(R2d_0),            dtype=dtype, device=device, requires_grad=True),
-            "gamma2":        torch.tensor(gamma2_0,                 dtype=dtype, device=device, requires_grad=True),
+            "gamma1":        torch.tensor([gamma1_0],        dtype=dtype, device=device, requires_grad=True),
+            "B11":           torch.tensor(B11_0,             dtype=dtype, device=device, requires_grad=True),
+            "log_B12_delta": torch.tensor(Delta_B12_raw,     dtype=dtype, device=device, requires_grad=True),
+            "B21":           torch.tensor(B21_0,             dtype=dtype, device=device, requires_grad=True),
+            "B22":           torch.tensor(B22_0,             dtype=dtype, device=device, requires_grad=True),
+            "B31d":          torch.tensor(B31d_0,            dtype=dtype, device=device, requires_grad=True),
+            "B32d":          torch.tensor(B32d_0,            dtype=dtype, device=device, requires_grad=True),
+            "B41d":          torch.tensor(B41d_0,            dtype=dtype, device=device, requires_grad=True),
+            "B42d":          torch.tensor(B42d_0,            dtype=dtype, device=device, requires_grad=True),
+            "log_Q1d":       torch.tensor(log_Q1d_0,         dtype=dtype, device=device, requires_grad=True),
+            "log_R1d":       torch.tensor(log_R1d_0,         dtype=dtype, device=device, requires_grad=True),
+            "log_R2d":       torch.tensor(log_R2d_0,         dtype=dtype, device=device, requires_grad=True),
+            "gamma2":        torch.tensor(gamma2_0,          dtype=dtype, device=device, requires_grad=True),
         }
         if not fix_gamma3:
             d["gamma3"] = torch.tensor(gamma3_0, dtype=dtype, device=device, requires_grad=True)
@@ -878,6 +906,7 @@ def filtering(
     fix_gamma4=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
+    sim_prior=None,
 ):
     if method != "two_stage":
         raise ValueError(
@@ -909,4 +938,5 @@ def filtering(
         fix_gamma4=fix_gamma4,
         fix_p12=fix_p12,
         p12_fixed_value=p12_fixed_value,
+        sim_prior=sim_prior,
     )

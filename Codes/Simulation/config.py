@@ -8,6 +8,7 @@ config = {}
 
 # --- File Paths ---
 config["true_params_file"] = _HERE / "parameter_estimates_loaded.csv"
+config["sim_init_path"]    = _HERE / "kelava_init_params_sim.csv"
 config["output_dir"] = _HERE / "output"
 
 # --- Simulation Settings ---
@@ -41,5 +42,6 @@ config["seed"] = 123
 config["output_dir"].mkdir(parents=True, exist_ok=True)
 
 print("Configuration loaded completely.")
-print(" - Params file: " + str(config["true_params_file"]))
-print(" - Output dir:  " + str(config["output_dir"]))
+print(" - Params file:   " + str(config["true_params_file"]))
+print(" - Sim init path: " + str(config["sim_init_path"]))
+print(" - Output dir:    " + str(config["output_dir"]))

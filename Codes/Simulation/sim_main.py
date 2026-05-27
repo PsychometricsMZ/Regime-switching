@@ -14,6 +14,34 @@ from sim_data_generation import generate_sim_data
 from sim_filtering import filtering
 
 
+def load_sim_prior(csv_path):
+    """Load Kelava warm-start priors from CSV.
+
+    Returns dict: param_base -> {'mean': scalar_or_array, 'sd': scalar_or_array}
+    Vector params (e.g. B11_1, B11_2) are assembled in index order.
+    """
+    df = pd.read_csv(csv_path)
+    prior = {}
+    for _, row in df.iterrows():
+        pname = str(row["Parameter"])
+        mean_val = float(row["Mean"])
+        sd_val   = float(row["SD"])
+        parts = pname.rsplit("_", 1)
+        if len(parts) == 2 and parts[1].isdigit():
+            base = parts[0]
+            if base not in prior:
+                prior[base] = {"mean": [], "sd": []}
+            prior[base]["mean"].append(mean_val)
+            prior[base]["sd"].append(sd_val)
+        else:
+            prior[pname] = {"mean": mean_val, "sd": sd_val}
+    for v in prior.values():
+        if isinstance(v["mean"], list):
+            v["mean"] = np.array(v["mean"], dtype=np.float32)
+            v["sd"]   = np.array(v["sd"],   dtype=np.float32)
+    return prior
+
+
 def calculate_metrics(true_vec, pred_vec, prefix):
     if len(true_vec) == 0:
         return pd.DataFrame()
@@ -48,7 +76,7 @@ def calculate_metrics(true_vec, pred_vec, prefix):
 
 
 def run_one_simulation(args):
-    i, method, N_val, n_train_val, true_params, config, device = args
+    i, method, N_val, n_train_val, true_params, config, device, sim_prior = args
 
     try:
         sim_data_list = generate_sim_data(
@@ -94,6 +122,7 @@ def run_one_simulation(args):
                     fix_gamma4=True,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
+                    sim_prior=sim_prior,
                 )
             except Exception as e:
                 print(f"     !!! Sim {i} Attempt {init_attempt} Error in filtering: {e}")
@@ -210,6 +239,9 @@ def main():
     true_params = load_true_parameters2(config["true_params_file"])
     print(config["true_params_file"])
 
+    sim_prior = load_sim_prior(config["sim_init_path"])
+    print(f"Kelava sim_prior loaded: {len(sim_prior)} parameter groups")
+
     max_workers = min(16, os.cpu_count() or 1)
     print("Using workers:", max_workers)
 
@@ -229,7 +261,7 @@ def main():
                 results_list = [None] * config["N_SIM"]
 
                 task_args = [
-                    (i, method, N_val, n_train_val, true_params, config, device)
+                    (i, method, N_val, n_train_val, true_params, config, device, sim_prior)
                     for i in range(1, config["N_SIM"] + 1)
                 ]
 
