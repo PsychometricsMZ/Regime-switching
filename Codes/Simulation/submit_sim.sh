@@ -14,10 +14,15 @@
 module load devel/python/3.13.1
 source ~/venv_regime/bin/activate
 
-cd /gpfs/bwfor/home/tu/tu_tu/tu_wwdok01/Simulation
+cd $HOME/Codes/Simulation
 mkdir -p output logs
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
 echo "Job started: $(date)"
 echo "Node: $(hostname)"
+echo "Working dir: $(pwd)"
 python sim_main.py
 echo "Job finished: $(date)"

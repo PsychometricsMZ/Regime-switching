@@ -1,8 +1,8 @@
 Parameter,Idx,True_Value,"$\mathcal{D}_{50,25}$ Bias","$\mathcal{D}_{50,25}$ RMSE","$\mathcal{D}_{100,25}$ Bias","$\mathcal{D}_{100,25}$ RMSE","$\mathcal{D}_{50,50}$ Bias","$\mathcal{D}_{50,50}$ RMSE","$\mathcal{D}_{100,50}$ Bias","$\mathcal{D}_{100,50}$ RMSE"
-$\gamma_1$,1,1.48,-6.3605,7.4667,NA,NA,NA,NA,NA,NA
-$\gamma_2$,1,-1.17,0.8662,1.05,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_3$,1,0.26,-12.3283,13.076,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_3$,2,-0.83,-21.803,22.4113,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_4$,1,-0.74,12.8605,13.1965,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_4$,2,-0.19,9.833,9.9507,NA,NA,NA,NA,NA,NA
-$P_{12}$,1,0.1,-0.0142,0.0201,NA,NA,NA,NA,NA,NA
+$\gamma_1$,1,4.5951,-0.99,2.6904,NA,NA,NA,NA,NA,NA
+$\gamma_2$,1,-1.2536,1.5838,2.6231,NA,NA,NA,NA,NA,NA
+$\bm{\gamma}_3$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
+$\bm{\gamma}_3$,2,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
+$\bm{\gamma}_4$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
+$\bm{\gamma}_4$,2,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
+$P_{12}$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
