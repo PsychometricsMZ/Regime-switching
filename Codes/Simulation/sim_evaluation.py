@@ -294,10 +294,10 @@ def plot_score_function(score_fns: dict[str, np.ndarray],
     axes_flat = axes.flatten()
 
     panel_titles = {
-        "two_stage_N50_Ntrain25":  r"$N=50,\ N_\mathrm{train}=25$",
-        "two_stage_N100_Ntrain25": r"$N=100,\ N_\mathrm{train}=25$",
-        "two_stage_N50_Ntrain50":  r"$N=50,\ N_\mathrm{train}=50$",
-        "two_stage_N100_Ntrain50": r"$N=100,\ N_\mathrm{train}=50$",
+        "two_stage_N50_Ntrain25":  r"$N=50,\ T_\mathrm{train}=25$",
+        "two_stage_N100_Ntrain25": r"$N=100,\ T_\mathrm{train}=25$",
+        "two_stage_N50_Ntrain50":  r"$N=50,\ T_\mathrm{train}=50$",
+        "two_stage_N100_Ntrain50": r"$N=100,\ T_\mathrm{train}=50$",
     }
 
     for idx, cond in enumerate(CONDITIONS):
@@ -326,6 +326,56 @@ def plot_score_function(score_fns: dict[str, np.ndarray],
 
     fig.suptitle(r"Score function $\delta_t$ across forecast window by condition",
                  fontsize=13)
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"  Saved: {save_path}")
+    if show:
+        plt.show()
+    plt.close(fig)
+
+
+def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
+                                save_path: Path, show: bool = False):
+    """All 4 conditions overlaid in a single panel for direct comparison.
+    Mean as solid line; SD bounds as thin dotted lines of the same colour.
+    Legend placed below the axes so it never overlaps the plot area.
+    """
+    colors    = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+    ls_styles = ["-", "--", "-.", ":"]
+    labels = {
+        "two_stage_N50_Ntrain25":  r"$N=50,\ T_{\rm train}=25$",
+        "two_stage_N100_Ntrain25": r"$N=100,\ T_{\rm train}=25$",
+        "two_stage_N50_Ntrain50":  r"$N=50,\ T_{\rm train}=50$",
+        "two_stage_N100_Ntrain50": r"$N=100,\ T_{\rm train}=50$",
+    }
+
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+
+    for (cond, color, ls) in zip(CONDITIONS, colors, ls_styles):
+        tag    = cond["tag"]
+        ntrain = cond["Ntrain"]
+        if tag not in score_fns:
+            continue
+        mat  = score_fns[tag]
+        mean = np.nanmean(mat, axis=0)
+        sd   = np.nanstd(mat, axis=0, ddof=1)
+        t    = np.arange(1, len(mean) + 1)   # relative forecast step 1..10
+        # Mean line (thick)
+        ax.plot(t, mean, color=color, linewidth=2.0, linestyle=ls,
+                label=labels.get(tag, tag))
+        # SD bounds as thin dotted lines (same colour, no fill)
+        ax.plot(t, mean + sd, color=color, linewidth=0.8, linestyle=":",
+                alpha=0.7)
+        ax.plot(t, mean - sd, color=color, linewidth=0.8, linestyle=":",
+                alpha=0.7)
+
+    ax.set_xlabel("Forecast step", fontsize=11)
+    ax.set_ylabel(r"Score function $\delta_t$", fontsize=11)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    # Legend below axes, outside the plot area
+    ax.legend(fontsize=9, framealpha=0.9, loc="upper center",
+              bbox_to_anchor=(0.5, -0.18), ncol=2)
     fig.tight_layout()
     fig.savefig(save_path, dpi=300, bbox_inches="tight")
     print(f"  Saved: {save_path}")
@@ -392,6 +442,8 @@ def main():
     if score_fns:
         plot_score_function(score_fns, summaries,
                             plots_dir / "sim_score_2x2.png", show=show)
+        plot_score_function_overlay(score_fns,
+                                    plots_dir / "sim_score_overlay.png", show=show)
     else:
         print("  No score function data found; skipping plot.")
 
