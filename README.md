@@ -103,7 +103,8 @@ sim_summary/
 │   ├── param_table_mm.csv
 │   └── metrics_table.csv
 └── plots/
-    └── sim_score_2x2.png
+    ├── sim_score_2x2.png
+    └── sim_score_overlay.png
 ```
 
 ## Notes
