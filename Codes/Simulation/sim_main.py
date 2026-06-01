@@ -120,6 +120,7 @@ def run_one_simulation(args):
                     two_stage_damping=config["TWO_STAGE_DAMPING"],
                     fix_gamma3=True,
                     fix_gamma4=True,
+                    fix_gamma1=True,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
                     sim_prior=sim_prior,

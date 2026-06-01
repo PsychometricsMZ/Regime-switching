@@ -59,6 +59,7 @@ def _forward_filter_pass_two_stage(
     dtype,
     fix_gamma3=False,
     fix_gamma4=False,
+    fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
 ):
@@ -74,7 +75,9 @@ def _forward_filter_pass_two_stage(
     B41d = theta["B41d"]
     B42d = theta["B42d"]
 
-    gamma1 = theta["gamma1"]
+    gamma1 = (torch.tensor([GAMMA1_FIXED], dtype=dtype, device=device)
+              if fix_gamma1
+              else theta["gamma1"])
     gamma2 = theta["gamma2"]
     gamma3 = theta.get("gamma3", torch.zeros(U1, dtype=dtype, device=device))
     gamma4 = theta.get("gamma4", torch.zeros(U1, dtype=dtype, device=device))
@@ -609,7 +612,7 @@ def _filtering_two_stage(
             logit_p12_b_0 = float(np.log(p12_init / (1.0 - p12_init)))
 
         d = {
-            "gamma1":        torch.tensor([gamma1_0],        dtype=dtype, device=device, requires_grad=True),
+            "gamma1":        torch.tensor([GAMMA1_FIXED if fix_gamma1 else gamma1_0], dtype=dtype, device=device, requires_grad=(not fix_gamma1)),
             "B11":           torch.tensor(B11_0,             dtype=dtype, device=device, requires_grad=True),
             "log_B12_delta": torch.tensor(Delta_B12_raw,     dtype=dtype, device=device, requires_grad=True),
             "B21":           torch.tensor(B21_0,             dtype=dtype, device=device, requires_grad=True),
@@ -673,6 +676,7 @@ def _filtering_two_stage(
                 dtype=dtype,
                 fix_gamma3=fix_gamma3,
                 fix_gamma4=fix_gamma4,
+                fix_gamma1=fix_gamma1,
                 fix_p12=fix_p12,
                 p12_fixed_value=p12_fixed_value,
             )
@@ -725,6 +729,7 @@ def _filtering_two_stage(
                 dtype=dtype,
                 fix_gamma3=fix_gamma3,
                 fix_gamma4=fix_gamma4,
+                fix_gamma1=fix_gamma1,
                 fix_p12=fix_p12,
                 p12_fixed_value=p12_fixed_value,
             )
@@ -853,6 +858,10 @@ def _filtering_two_stage(
         final_estimates_df = pd.concat([final_estimates_df,
             pd.DataFrame({"Parameter": ["P12"], "Estimate": [p12_fixed_value], "SE": [np.nan]})],
             ignore_index=True)
+    if fix_gamma1:
+        final_estimates_df = pd.concat([final_estimates_df,
+            pd.DataFrame({"Parameter": ["gamma1"], "Estimate": [GAMMA1_FIXED], "SE": [np.nan]})],
+            ignore_index=True)
 
     # Insert Q2 diagonal from the between-level moment estimator
     for dim_idx, q2_est in enumerate(q2_diag_best, start=1):
@@ -904,6 +913,7 @@ def filtering(
     two_stage_damping=0.5,
     fix_gamma3=False,
     fix_gamma4=False,
+    fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
     sim_prior=None,
@@ -934,9 +944,4 @@ def filtering(
         device=device,
         two_stage_outer_loops=two_stage_outer_loops,
         two_stage_damping=two_stage_damping,
-        fix_gamma3=fix_gamma3,
-        fix_gamma4=fix_gamma4,
-        fix_p12=fix_p12,
-        p12_fixed_value=p12_fixed_value,
-        sim_prior=sim_prior,
-    )
+        fix_gamma1=fix_gamma1,
