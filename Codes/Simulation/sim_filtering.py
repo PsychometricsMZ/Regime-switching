@@ -523,6 +523,7 @@ def _filtering_two_stage(
     two_stage_damping=0.5,
     fix_gamma3=False,
     fix_gamma4=False,
+    fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
     sim_prior=None,
@@ -858,11 +859,6 @@ def _filtering_two_stage(
         final_estimates_df = pd.concat([final_estimates_df,
             pd.DataFrame({"Parameter": ["P12"], "Estimate": [p12_fixed_value], "SE": [np.nan]})],
             ignore_index=True)
-    if fix_gamma1:
-        final_estimates_df = pd.concat([final_estimates_df,
-            pd.DataFrame({"Parameter": ["gamma1"], "Estimate": [GAMMA1_FIXED], "SE": [np.nan]})],
-            ignore_index=True)
-
     # Insert Q2 diagonal from the between-level moment estimator
     for dim_idx, q2_est in enumerate(q2_diag_best, start=1):
         new_row = pd.DataFrame({
@@ -945,3 +941,4 @@ def filtering(
         two_stage_outer_loops=two_stage_outer_loops,
         two_stage_damping=two_stage_damping,
         fix_gamma1=fix_gamma1,
+    )
