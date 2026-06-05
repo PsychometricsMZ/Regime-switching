@@ -340,8 +340,7 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
     Mean as solid line; SD bounds as thin dotted lines of the same colour.
     Legend placed below the axes so it never overlaps the plot area.
     """
-    colors    = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
-    ls_styles = ["-", "--", "-.", ":"]
+    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
     labels = {
         "two_stage_N50_Ntrain25":  r"$N=50,\ T_{\rm train}=25$",
         "two_stage_N100_Ntrain25": r"$N=100,\ T_{\rm train}=25$",
@@ -351,19 +350,18 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
 
-    for (cond, color, ls) in zip(CONDITIONS, colors, ls_styles):
-        tag    = cond["tag"]
-        ntrain = cond["Ntrain"]
+    for (cond, color) in zip(CONDITIONS, colors):
+        tag = cond["tag"]
         if tag not in score_fns:
             continue
         mat  = score_fns[tag]
         mean = np.nanmean(mat, axis=0)
         sd   = np.nanstd(mat, axis=0, ddof=1)
         t    = np.arange(1, len(mean) + 1)   # relative forecast step 1..10
-        # Mean line (thick)
-        ax.plot(t, mean, color=color, linewidth=2.0, linestyle=ls,
+        # Mean line: solid, same style for all conditions, distinguished by color
+        ax.plot(t, mean, color=color, linewidth=2.0, linestyle="-",
                 label=labels.get(tag, tag))
-        # SD bounds as thin dotted lines (same colour, no fill)
+        # SD bounds: dotted lines, same color
         ax.plot(t, mean + sd, color=color, linewidth=0.8, linestyle=":",
                 alpha=0.7)
         ax.plot(t, mean - sd, color=color, linewidth=0.8, linestyle=":",
