@@ -147,6 +147,9 @@ def summarize_estimates(estimates_list, true_params, n_converged):
         return pd.DataFrame()
 
     # Stack into (n_runs × n_params) DataFrame; align columns
+    # De-duplicate index within each Series before stacking
+    estimates_list = [s[~s.index.duplicated(keep='first')] if isinstance(s, pd.Series) else s
+                      for s in estimates_list]
     df = pd.DataFrame(estimates_list).reset_index(drop=True)
 
     rows = []
