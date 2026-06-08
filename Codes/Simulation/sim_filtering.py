@@ -62,6 +62,8 @@ def _forward_filter_pass_two_stage(
     fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
+    gamma3_fixed_value=None,
+    gamma4_fixed_value=None,
 ):
     epsilon = 1e-12
     const = (2 * math.pi) ** (-O1 / 2)
@@ -79,8 +81,16 @@ def _forward_filter_pass_two_stage(
               if fix_gamma1
               else theta["gamma1"])
     gamma2 = theta["gamma2"]
-    gamma3 = theta.get("gamma3", torch.zeros(U1, dtype=dtype, device=device))
-    gamma4 = theta.get("gamma4", torch.zeros(U1, dtype=dtype, device=device))
+    if fix_gamma3:
+        _g3 = gamma3_fixed_value if gamma3_fixed_value is not None else np.zeros(U1)
+        gamma3 = torch.tensor(_g3, dtype=dtype, device=device)
+    else:
+        gamma3 = theta.get("gamma3", torch.zeros(U1, dtype=dtype, device=device))
+    if fix_gamma4:
+        _g4 = gamma4_fixed_value if gamma4_fixed_value is not None else np.zeros(U1)
+        gamma4 = torch.tensor(_g4, dtype=dtype, device=device)
+    else:
+        gamma4 = theta.get("gamma4", torch.zeros(U1, dtype=dtype, device=device))
 
     log_Q1d = theta["log_Q1d"]
     log_R1d = theta["log_R1d"]
@@ -156,6 +166,13 @@ def _forward_filter_pass_two_stage(
     P12 = (torch.tensor(p12_fixed_value, dtype=dtype, device=device)
           if fix_p12
           else torch.sigmoid(theta["logit_P12_b"]))
+
+    # ------ regime-1 stationary mean for centering --------------------------
+    # mu1i1 = (I - B3_i1)^{-1} B1_i1  (N, U1)
+    # Since the transition P(S_t=1|S_{t-1}=1) conditions on regime 1, we use
+    # the regime-1 conditional filtered estimate centered at its stationary mean.
+    I_minus_B3i1 = safe_eye(U1, device, dtype).unsqueeze(0) - B3_is[:, 0, :, :]   # (N, U1, U1)
+    mu1i1 = torch.linalg.solve(I_minus_B3i1, B1_is[:, 0, :].unsqueeze(-1)).squeeze(-1)  # (N, U1)
 
     # ------------------------------------------------------------------
     # History lists
@@ -255,10 +272,8 @@ def _forward_filter_pass_two_stage(
             jLL_t[idx] = jLL_nm
 
         # --- Transition probabilities ---
-        eta1_pred_t = (
-            mPr_filtered_t[:, 0].unsqueeze(-1) * mEta_t[:, 0, :]
-            + mPr_filtered_t[:, 1].unsqueeze(-1) * mEta_t[:, 1, :]
-        )
+        # Use regime-1 conditional estimate centered at regime-1 stationary mean.
+        eta1_pred_t = mEta_t[:, 0, :] - mu1i1   # (N, U1)
 
         tPr_t = torch.full((N, 2, 2), float("nan"), device=device, dtype=dtype)
         tPr_t[:, 0, 1] = P12
@@ -680,6 +695,8 @@ def _filtering_two_stage(
                 fix_gamma1=fix_gamma1,
                 fix_p12=fix_p12,
                 p12_fixed_value=p12_fixed_value,
+                gamma3_fixed_value=gamma3_fixed_value,
+                gamma4_fixed_value=gamma4_fixed_value,
             )
 
             loss = -torch.nanmean(out["mLL"][:, :n_train])
@@ -733,6 +750,8 @@ def _filtering_two_stage(
                 fix_gamma1=fix_gamma1,
                 fix_p12=fix_p12,
                 p12_fixed_value=p12_fixed_value,
+                gamma3_fixed_value=gamma3_fixed_value,
+                gamma4_fixed_value=gamma4_fixed_value,
             )
 
         mEta_best = out_best["mEta"]
@@ -912,6 +931,8 @@ def filtering(
     fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
+    gamma3_fixed_value=None,
+    gamma4_fixed_value=None,
     sim_prior=None,
 ):
     if method != "two_stage":
@@ -941,4 +962,11 @@ def filtering(
         two_stage_outer_loops=two_stage_outer_loops,
         two_stage_damping=two_stage_damping,
         fix_gamma1=fix_gamma1,
+        fix_gamma3=fix_gamma3,
+        fix_gamma4=fix_gamma4,
+        fix_p12=fix_p12,
+        p12_fixed_value=p12_fixed_value,
+        gamma3_fixed_value=gamma3_fixed_value,
+        gamma4_fixed_value=gamma4_fixed_value,
+        sim_prior=sim_prior,
     )
