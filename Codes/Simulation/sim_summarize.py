@@ -86,6 +86,7 @@ def parse_pkl(pkl_path):
         results = pickle.load(f)
 
     estimates = []
+    ses       = []   # per-replication SE series (for coverage rate)
     metrics   = []
     ll_list   = []
     condition = None
@@ -110,14 +111,23 @@ def parse_pkl(pkl_path):
         n_converged += 1
         est_series = est_df.set_index("Parameter")["Estimate"]
 
+        # SE series (may be absent if COMPUTE_SE=False)
+        if "SE" in est_df.columns:
+            se_series = est_df.set_index("Parameter")["SE"]
+        else:
+            se_series = pd.Series(dtype=float)
+
         # P2 is estimated via a moment estimator outside the main optimisation
         # and stored separately — append it manually so it appears in the
         # parameter recovery table (cf. Manuscript Table A5).
         p2_val = res.get("P2_estimated")
         if p2_val is not None and np.isfinite(float(p2_val)):
             est_series = pd.concat([est_series, pd.Series({"P2": float(p2_val)})])
+            # P2 has no SE from OPG; append NaN placeholder so indices align
+            se_series = pd.concat([se_series, pd.Series({"P2": np.nan})])
 
         estimates.append(est_series)
+        ses.append(se_series)
         ll_list.append(res.get("ll", np.nan))
 
         met = res.get("metrics")
@@ -127,6 +137,7 @@ def parse_pkl(pkl_path):
     return {
         "condition":    condition,
         "estimates":    estimates,
+        "ses":          ses,
         "metrics":      metrics,
         "ll_list":      ll_list,
         "n_total":      n_total,
@@ -137,11 +148,14 @@ def parse_pkl(pkl_path):
 # ---------------------------------------------------------------------------
 # Summarize parameter recovery
 # ---------------------------------------------------------------------------
-def summarize_estimates(estimates_list, true_params, n_converged):
+def summarize_estimates(estimates_list, true_params, n_converged, ses_list=None):
     """
     estimates_list : list of pd.Series indexed by parameter name
+    ses_list       : list of pd.Series of per-replication SEs (same index as estimates)
+                     If provided, coverage rate at nominal 95% is computed.
     Returns a DataFrame with columns:
-        Parameter, True_Value, Mean, SD, SE, Bias, Relative_Bias_pct, RMSE
+        Parameter, True_Value, Mean, SD, SE, Bias, Relative_Bias_pct, RMSE,
+        Coverage_Rate (proportion of reps where true ∈ [est ± 1.96·SE])
     """
     if not estimates_list:
         return pd.DataFrame()
@@ -150,11 +164,19 @@ def summarize_estimates(estimates_list, true_params, n_converged):
     # De-duplicate index within each Series before stacking
     estimates_list = [s[~s.index.duplicated(keep='first')] if isinstance(s, pd.Series) else s
                       for s in estimates_list]
-    df = pd.DataFrame(estimates_list).reset_index(drop=True)
+    df_est = pd.DataFrame(estimates_list).reset_index(drop=True)
+
+    # Build SE matrix aligned to the same columns (NaN where SE unavailable)
+    if ses_list is not None:
+        ses_list = [s[~s.index.duplicated(keep='first')] if isinstance(s, pd.Series) else s
+                    for s in ses_list]
+        df_se = pd.DataFrame(ses_list).reindex(columns=df_est.columns).reset_index(drop=True)
+    else:
+        df_se = pd.DataFrame(np.nan, index=df_est.index, columns=df_est.columns)
 
     rows = []
-    for param in df.columns:
-        vals = df[param].dropna().values
+    for param in df_est.columns:
+        vals = df_est[param].dropna().values
         if len(vals) == 0:
             continue
         mean_val = float(np.mean(vals))
@@ -164,16 +186,43 @@ def summarize_estimates(estimates_list, true_params, n_converged):
         bias     = mean_val - true_val if not np.isnan(true_val) else np.nan
         rel_bias = 100 * bias / abs(true_val) if (not np.isnan(true_val) and true_val != 0) else np.nan
         rmse     = float(np.sqrt(np.mean((vals - true_val) ** 2))) if not np.isnan(true_val) else np.nan
+
+        # Coverage rate and power require per-replication SE
+        coverage = np.nan
+        power    = np.nan
+        if param in df_se.columns:
+            est_col = df_est[param]
+            se_col  = df_se[param]
+            valid   = est_col.notna() & se_col.notna() & se_col.gt(0)
+            if valid.sum() > 0:
+                e = est_col[valid].values
+                s = se_col[valid].values
+                # Coverage rate: proportion of reps where true_val ∈ [est ± 1.96·SE]
+                if not np.isnan(true_val):
+                    covered  = ((e - 1.96 * s) <= true_val) & (true_val <= (e + 1.96 * s))
+                    coverage = float(np.mean(covered))
+                # Power: proportion of reps where 0 ∉ [est ± 1.96·SE]
+                # Meaningful when true_val ≠ 0; reported for all params, NaN when true_val == 0
+                if not np.isnan(true_val) and true_val != 0:
+                    significant = (e - 1.96 * s > 0) | (e + 1.96 * s < 0)
+                    power = float(np.mean(significant))
+                # Type-I error rate when true_val == 0 (same formula, different interpretation)
+                elif not np.isnan(true_val) and true_val == 0:
+                    false_positive = (e - 1.96 * s > 0) | (e + 1.96 * s < 0)
+                    power = float(np.mean(false_positive))  # = Type-I error rate
+
         rows.append({
-            "Parameter":        param,
-            "True_Value":       true_val,
-            "Mean":             round(mean_val, 6),
-            "SD":               round(sd_val, 6),
-            "SE":               round(se_val, 6),
-            "Bias":             round(bias, 6)     if not np.isnan(bias)     else np.nan,
+            "Parameter":         param,
+            "True_Value":        true_val,
+            "Mean":              round(mean_val, 6),
+            "SD":                round(sd_val, 6),
+            "SE":                round(se_val, 6),
+            "Bias":              round(bias, 6)     if not np.isnan(bias)     else np.nan,
             "Relative_Bias_pct": round(rel_bias, 2) if not np.isnan(rel_bias) else np.nan,
-            "RMSE":             round(rmse, 6)     if not np.isnan(rmse)     else np.nan,
-            "N_Valid":          len(vals),
+            "RMSE":              round(rmse, 6)     if not np.isnan(rmse)     else np.nan,
+            "Coverage_Rate":     round(coverage, 4) if not np.isnan(coverage) else np.nan,
+            "Power":             round(power, 4)    if not np.isnan(power)    else np.nan,
+            "N_Valid":           len(vals),
         })
 
     return pd.DataFrame(rows)
@@ -255,7 +304,9 @@ def main():
         print(f"  Converged: {n_converged}/{n_total} ({100*conv_rate:.1f}%)")
 
         # --- Parameter recovery ---
-        est_summary = summarize_estimates(data["estimates"], true_params, n_converged)
+        est_summary = summarize_estimates(
+            data["estimates"], true_params, n_converged, ses_list=data.get("ses")
+        )
 
         # --- Metrics ---
         met_summary = summarize_metrics(data["metrics"])
@@ -281,7 +332,7 @@ def main():
                 "True_Value": np.nan, "Mean": round(ll_mean, 4),
                 "SD": round(ll_sd, 4), "SE": np.nan,
                 "Bias": np.nan, "Relative_Bias_pct": np.nan, "RMSE": np.nan,
-                "N_Valid": len(ll_arr),
+                "Coverage_Rate": np.nan, "Power": np.nan, "N_Valid": len(ll_arr),
             }])
             conv_rows = pd.DataFrame([{
                 "Method": method, "N": N, "NT_TRAIN": NT_TRAIN,
@@ -289,7 +340,7 @@ def main():
                 "True_Value": np.nan, "Mean": round(conv_rate, 4),
                 "SD": np.nan, "SE": np.nan,
                 "Bias": np.nan, "Relative_Bias_pct": np.nan, "RMSE": np.nan,
-                "N_Valid": n_total,
+                "Coverage_Rate": np.nan, "Power": np.nan, "N_Valid": n_total,
             }])
             full_summary = pd.concat([est_summary, ll_rows, conv_rows], ignore_index=True)
 

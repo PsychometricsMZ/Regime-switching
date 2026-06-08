@@ -76,7 +76,7 @@ def calculate_metrics(true_vec, pred_vec, prefix):
 
 
 def run_one_simulation(args):
-    i, method, N_val, n_train_val, true_params, config, device, sim_prior = args
+    i, method, N_val, n_train_val, true_params, config, device, sim_prior, gamma3_fixed_value, gamma4_fixed_value = args
 
     try:
         sim_data_list = generate_sim_data(
@@ -123,6 +123,8 @@ def run_one_simulation(args):
                     fix_gamma1=True,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
+                    gamma3_fixed_value=gamma3_fixed_value,
+                    gamma4_fixed_value=gamma4_fixed_value,
                     sim_prior=sim_prior,
                 )
             except Exception as e:
@@ -240,6 +242,15 @@ def main():
     true_params = load_true_parameters2(config["true_params_file"])
     print(config["true_params_file"])
 
+    # Load emp gamma3/gamma4 fixed values from parameter_estimates_loaded.csv
+    _df_params = pd.read_csv(config["true_params_file"])
+    _g3_rows = _df_params[_df_params["Parameter"].str.match(r"gamma3_\d+")]
+    _g4_rows = _df_params[_df_params["Parameter"].str.match(r"gamma4_\d+")]
+    gamma3_fixed_value = _g3_rows["Estimate"].values if len(_g3_rows) > 0 else None
+    gamma4_fixed_value = _g4_rows["Estimate"].values if len(_g4_rows) > 0 else None
+    print(f"gamma3_fixed_value: {gamma3_fixed_value}")
+    print(f"gamma4_fixed_value: {gamma4_fixed_value}")
+
     sim_prior = load_sim_prior(config["sim_init_path"])
     print(f"Kelava sim_prior loaded: {len(sim_prior)} parameter groups")
 
@@ -262,7 +273,8 @@ def main():
                 results_list = [None] * config["N_SIM"]
 
                 task_args = [
-                    (i, method, N_val, n_train_val, true_params, config, device, sim_prior)
+                    (i, method, N_val, n_train_val, true_params, config, device, sim_prior,
+                     gamma3_fixed_value, gamma4_fixed_value)
                     for i in range(1, config["N_SIM"] + 1)
                 ]
 
