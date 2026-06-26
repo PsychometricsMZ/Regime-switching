@@ -118,8 +118,8 @@ def run_one_simulation(args):
                     method=method,
                     two_stage_outer_loops=config["TWO_STAGE_OUTER_LOOPS"],
                     two_stage_damping=config["TWO_STAGE_DAMPING"],
-                    fix_gamma3=True,
-                    fix_gamma4=True,
+                    fix_gamma3=False,
+                    fix_gamma4=False,
                     fix_gamma1=True,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
@@ -242,12 +242,11 @@ def main():
     true_params = load_true_parameters2(config["true_params_file"])
     print(config["true_params_file"])
 
-    # Load emp gamma3/gamma4 fixed values from parameter_estimates_loaded.csv
-    _df_params = pd.read_csv(config["true_params_file"])
-    _g3_rows = _df_params[_df_params["Parameter"].str.match(r"gamma3_\d+")]
-    _g4_rows = _df_params[_df_params["Parameter"].str.match(r"gamma4_\d+")]
-    gamma3_fixed_value = _g3_rows["Estimate"].values if len(_g3_rows) > 0 else None
-    gamma4_fixed_value = _g4_rows["Estimate"].values if len(_g4_rows) > 0 else None
+    # Build gamma3/gamma4 fixed values from remapped true_params (U1_sim=2)
+    # true_params is already remapped by load_true_parameters2 (empirical U1=7 -> sim U1=2)
+    U1_sim = 2
+    gamma3_fixed_value = np.array([true_params[f"gamma3_{k}"] for k in range(1, U1_sim + 1)])
+    gamma4_fixed_value = np.array([true_params[f"gamma4_{k}"] for k in range(1, U1_sim + 1)])
     print(f"gamma3_fixed_value: {gamma3_fixed_value}")
     print(f"gamma4_fixed_value: {gamma4_fixed_value}")
 

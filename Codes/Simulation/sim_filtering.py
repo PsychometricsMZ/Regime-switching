@@ -511,6 +511,125 @@ def _update_two_stage_offsets(
 
 
 # ==============================================================================
+# OPG standard errors for two-stage estimator
+# ==============================================================================
+
+def _compute_opg_se_two_stage(
+    theta_best, y1_tensor, y2_tensor, DO_matrix,
+    N, Nt, O1, O2, U1, missing, non_missing,
+    zeta_offsets_tensor, n_train,
+    se_sample_size, device, dtype,
+    fix_gamma3=False, fix_gamma4=False,
+    fix_gamma1=False, fix_p12=False,
+    p12_fixed_value=1e-12,
+    gamma3_fixed_value=None, gamma4_fixed_value=None,
+):
+    """
+    OPG approximation of SE for the two-stage estimator.
+    Only free parameters (requires_grad=True in theta_best) are included.
+    g_i = d/dtheta sum_t log f(y_{1it} | D_{1:t-1})
+    OPG = sum_i g_i g_i'
+    SE  = sqrt(diag(OPG^{-1}))
+    """
+    # Rebuild free-parameter dict from theta_best.
+    # theta_best values are detached (requires_grad=False), so we cannot rely on
+    # v.requires_grad to identify free params.  Instead, exclude keys that are
+    # structurally fixed: 'gamma1' when fix_gamma1=True.
+    # gamma3/gamma4/logit_P12_b are absent from theta_best when fixed, so no
+    # special handling needed for those.
+    fixed_keys = set()
+    if fix_gamma1:
+        fixed_keys.add("gamma1")
+    theta_g = {k: v.detach().clone().to(device=device, dtype=dtype).requires_grad_(True)
+               for k, v in theta_best.items()
+               if k not in fixed_keys}
+
+    param_names_flat = []
+    for k, v in theta_g.items():
+        n = v.numel()
+        if n > 1:
+            param_names_flat.extend([f"{k}_{j+1}" for j in range(n)])
+        else:
+            param_names_flat.append(k)
+    n_params = len(param_names_flat)
+
+    if se_sample_size is not None and se_sample_size < N:
+        idx_sample = np.random.choice(N, size=se_sample_size, replace=False)
+        scale = N / se_sample_size
+    else:
+        idx_sample = np.arange(N)
+        scale = 1.0
+
+    OPG = torch.zeros((n_params, n_params), device=device, dtype=dtype)
+    n_skipped = 0
+
+    for i in idx_sample:
+        out_i = _forward_filter_pass_two_stage(
+            theta=theta_g,
+            y1_tensor=y1_tensor[i:i+1], y2_tensor=y2_tensor[i:i+1],
+            DO_matrix=DO_matrix[i:i+1],
+            N=1, Nt=Nt, O1=O1, O2=O2, U1=U1,
+            missing=missing[i:i+1], non_missing=non_missing[i:i+1],
+            zeta_offsets=zeta_offsets_tensor[i:i+1],
+            device=device, dtype=dtype,
+            fix_gamma3=fix_gamma3, fix_gamma4=fix_gamma4,
+            fix_gamma1=fix_gamma1, fix_p12=fix_p12,
+            p12_fixed_value=p12_fixed_value,
+            gamma3_fixed_value=gamma3_fixed_value,
+            gamma4_fixed_value=gamma4_fixed_value,
+        )
+        ll_row = out_i["mLL"][0, :n_train]
+        valid_mask = torch.isfinite(ll_row)
+        if not valid_mask.any():
+            n_skipped += 1
+            continue
+        ll_i = ll_row[valid_mask].sum()
+        grads = torch.autograd.grad(ll_i, list(theta_g.values()),
+                                    retain_graph=False, allow_unused=True)
+        g_flat = torch.cat([
+            (g.reshape(-1) if g is not None else torch.zeros_like(v).reshape(-1))
+            for g, v in zip(grads, theta_g.values())
+        ])
+        if not torch.isfinite(g_flat).all():
+            n_skipped += 1
+            continue
+        OPG += torch.outer(g_flat, g_flat)
+        theta_g = {k: v.detach().clone().requires_grad_(True) for k, v in theta_g.items()}
+
+    if n_skipped > 0:
+        print(f"[OPG] Skipped {n_skipped}/{len(idx_sample)} individuals with non-finite gradients")
+
+    OPG *= scale
+
+    # Diagonal scaling + ridge regularization
+    diag_J = torch.diag(OPG)
+    eps_diag = 1e-12
+    scale_factors = torch.where(
+        diag_J > eps_diag,
+        1.0 / torch.sqrt(diag_J.clamp(min=eps_diag)),
+        torch.zeros_like(diag_J),
+    )
+    S = torch.diag(scale_factors)
+    OPG_scaled = S @ OPG @ S + torch.eye(n_params, device=device, dtype=dtype) * 1e-6
+
+    try:
+        cov_scaled = torch.linalg.inv(OPG_scaled)
+    except Exception:
+        print("[OPG] inv() failed on scaled matrix, using pinv()")
+        cov_scaled = torch.linalg.pinv(OPG_scaled, rcond=1e-6)
+
+    cov_final = S @ cov_scaled @ S
+    diag_cov = torch.diag(cov_final)
+    if not torch.isfinite(diag_cov).all():
+        print("[OPG] Non-finite diagonal in final covariance, SE set to NaN")
+        se_vec = torch.full((n_params,), float("nan"), device=device, dtype=dtype)
+    else:
+        se_vec = torch.sqrt(torch.clamp(diag_cov, min=0.0))
+
+    return se_vec.detach().cpu().numpy(), param_names_flat
+
+
+# ==============================================================================
 # Two-stage filtering (profile-likelihood outer loop)
 # ==============================================================================
 
@@ -541,6 +660,8 @@ def _filtering_two_stage(
     fix_gamma1=False,
     fix_p12=False,
     p12_fixed_value=1e-12,
+    gamma3_fixed_value=None,
+    gamma4_fixed_value=None,
     sim_prior=None,
 ):
     torch.manual_seed(seed + init)
@@ -548,9 +669,6 @@ def _filtering_two_stage(
 
     dtype = torch.float32
     epsilon = 1e-12
-
-    if compute_se and verbose:
-        print("SE computation is not yet implemented for two_stage; returning SE=NaN.")
 
     y1 = np.array(y1, dtype=np.float32, copy=True)
     y1_raw = y1.copy()
@@ -865,14 +983,16 @@ def _filtering_two_stage(
 
     # Add fixed parameters as constant rows
     if fix_gamma3:
+        _g3_vals = gamma3_fixed_value if gamma3_fixed_value is not None else np.zeros(U1)
         for k in range(1, U1 + 1):
             final_estimates_df = pd.concat([final_estimates_df,
-                pd.DataFrame({"Parameter": [f"gamma3_{k}"], "Estimate": [0.0], "SE": [np.nan]})],
+                pd.DataFrame({"Parameter": [f"gamma3_{k}"], "Estimate": [float(_g3_vals[k-1])], "SE": [np.nan]})],
                 ignore_index=True)
     if fix_gamma4:
+        _g4_vals = gamma4_fixed_value if gamma4_fixed_value is not None else np.zeros(U1)
         for k in range(1, U1 + 1):
             final_estimates_df = pd.concat([final_estimates_df,
-                pd.DataFrame({"Parameter": [f"gamma4_{k}"], "Estimate": [0.0], "SE": [np.nan]})],
+                pd.DataFrame({"Parameter": [f"gamma4_{k}"], "Estimate": [float(_g4_vals[k-1])], "SE": [np.nan]})],
                 ignore_index=True)
     if fix_p12:
         final_estimates_df = pd.concat([final_estimates_df,
@@ -886,6 +1006,37 @@ def _filtering_two_stage(
             "SE": [np.nan],
         })
         final_estimates_df = pd.concat([final_estimates_df, new_row], ignore_index=True)
+
+    # ------------------------------------------------------------------
+    # OPG SE (free parameters only; log-scale params mapped to output names)
+    # ------------------------------------------------------------------
+    if compute_se and overall_best is not None:
+        zeta_t = torch.tensor(zeta_offsets_np, dtype=dtype, device=device)
+        se_np, se_names = _compute_opg_se_two_stage(
+            theta_best=overall_best,
+            y1_tensor=y1_tensor, y2_tensor=y2_tensor, DO_matrix=DO,
+            N=N, Nt=Nt, O1=O1, O2=O2, U1=U1,
+            missing=missing, non_missing=non_missing,
+            zeta_offsets_tensor=zeta_t,
+            n_train=n_train, se_sample_size=se_sample_size,
+            device=device, dtype=dtype,
+            fix_gamma3=fix_gamma3, fix_gamma4=fix_gamma4,
+            fix_gamma1=fix_gamma1, fix_p12=fix_p12,
+            p12_fixed_value=p12_fixed_value,
+            gamma3_fixed_value=gamma3_fixed_value,
+            gamma4_fixed_value=gamma4_fixed_value,
+        )
+        se_map = dict(zip(se_names, se_np))
+        for param_raw, se_val in se_map.items():
+            out_name = param_raw
+            for pfx, sfx in [("log_Q1d", "Q1d"), ("log_R1d", "R1d"), ("log_R2d", "R2d")]:
+                if out_name.startswith(pfx):
+                    out_name = out_name.replace(pfx, sfx, 1)
+            if out_name.startswith("log_B12_delta"):
+                continue  # B12 is derived; delta method needed, skip for now
+            mask = final_estimates_df["Parameter"] == out_name
+            if mask.any():
+                final_estimates_df.loc[mask, "SE"] = float(se_val)
 
     return {
         "sumLL_best": overall_best_ll,
