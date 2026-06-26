@@ -40,11 +40,13 @@ The simulation follows a 2×2 factorial design:
 
 Each cell runs `N_SIM = 100` replications (`400` total). The model dimensions match a reduced version of the empirical study: O1=4, U1=2, O2=2, Nt=60 (50 dynamics + 10 forecast window).
 
+The Markov-switching parameters γ₃ (intra-individual main effect) and γ₄ (cross-level interaction) are freely estimated in the simulation (i.e., `fix_gamma3=False`, `fix_gamma4=False` in `sim_main.py`), with non-zero true values calibrated from a model fit that included these terms. The intercept γ₁ is fixed at its true value for identification.
+
 Parameter starting values are sampled from a Kelava warm-start distribution (`kelava_init_params_sim.csv`) to improve convergence; 5 independent initializations are run per replication and the best solution (highest log-likelihood) is retained.
 
 ## How to Run
 
-### On bwcluster (primary)
+### On bwHelix (primary)
 
 First-time setup (run once):
 ```bash
@@ -56,6 +58,15 @@ Run simulation:
 cd ~/Codes/Simulation
 mkdir -p logs output
 sbatch submit_sim.sh
+```
+
+Run `sim_summarize.py` interactively (must use a login bash shell):
+```bash
+bash -l
+module load devel/python/3.13.1
+source ~/venv_regime/bin/activate
+cd ~/Codes/Simulation
+python sim_summarize.py
 ```
 
 Run postprocessing (after simulation completes):
