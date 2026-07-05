@@ -178,7 +178,9 @@ def build_param_table(summaries: dict[str, pd.DataFrame],
                       group_key: str) -> pd.DataFrame:
     """
     Build wide-format parameter recovery table for one group.
-    Columns: Parameter | Idx | True_Value | (Bias, RMSE) × 4 conditions
+    Columns: Parameter | Idx | True_Value | (Bias, RMSE, Power) × 4 conditions
+    Power = proportion of replications where 0 lies outside the 95% CI
+    (rejection rate; for true_value = 0 parameters this is the Type-I error rate).
     """
     patterns = PARAM_GROUPS[group_key]
 
@@ -231,16 +233,20 @@ def build_param_table(summaries: dict[str, pd.DataFrame],
             if df is None:
                 row[f"{label} Bias"] = "NA"
                 row[f"{label} RMSE"] = "NA"
+                row[f"{label} Power"] = "NA"
                 continue
             sub = df[df["Parameter"] == param]
             if len(sub) == 0:
                 row[f"{label} Bias"] = "NA"
                 row[f"{label} RMSE"] = "NA"
+                row[f"{label} Power"] = "NA"
             else:
                 bias = sub["Bias"].values[0]
                 rmse = sub["RMSE"].values[0]
                 row[f"{label} Bias"] = round(float(bias), 4) if not pd.isna(bias) else "NA"
                 row[f"{label} RMSE"] = round(float(rmse), 4) if not pd.isna(rmse) else "NA"
+                power = sub["Power"].values[0] if "Power" in sub.columns else np.nan
+                row[f"{label} Power"] = round(float(power), 4) if not pd.isna(power) else "NA"
         rows.append(row)
 
     return pd.DataFrame(rows)
