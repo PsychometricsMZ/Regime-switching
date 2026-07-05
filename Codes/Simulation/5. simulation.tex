@@ -1,0 +1,54 @@
+\section{Simulation Studies}\label{sec:sim}
+In this section, we present a simulation study that investigates the performance of the proposed approach given complete datasets. Regime prediction, prediction of the dynamic latent variables, and parameter retrieval are evaluated with a population model that is build upon the characteristics of the empirical example in the previous section. 
+
+\subsection{Data generating process}
+Data were generated based on the parameter estimates from the empirical study. In the simulation, however, we used only 2 dynamic latent factors (\textit{cost, afraid to fail}). This reduced model complexity was necessary to keep computation time feasible for a simulation study.
+\textcolor{red}{We adopted a $2 \times 2$ factorial design crossing sample size $N \in \{50, 100\}$ and training length $N_{\text{train}} \in \{25, 50\}$, yielding four conditions: $\mathcal{D}_{50,25}$, $\mathcal{D}_{100,25}$, $\mathcal{D}_{50,50}$, and $\mathcal{D}_{100,50}$. This design mirrors that of \cite{Kelava2022}, who crossed $N \in \{25, 50\}$ with $N_t \in \{25, 50\}$ and a fixed 10-point forecast window ($N_t^{+}=10$); our larger $N$ values reflect the greater data requirements of maximum likelihood estimation relative to Bayesian estimation. Data were generated over $T=60$ time points. The first $T=50$ time points follow the regime-switching dynamics calibrated from the empirical study; the remaining 10 time points continue under the same parameter values to support forecasting in the $N_{\text{train}}=50$ conditions.} The simulation was replicated $R=100$ times per condition \textcolor{red}{($400$ total)}.
+
+\subsection{Forecast implementation and evaluation}
+
+The estimation procedure was implemented in R \citep{R}. The model estimation and forecasting were implemented according to Algorithm 1. Our parameter optimization used Rprop \citep{Riedmiller1993} with hyperparameters $\left( \Delta_{0}=0.1, \bm{\eta} = (\eta_{+},\eta_{-}) = (0.5, 1.2), (\Delta_{\text{min}}, \Delta_{\text{max}})=(10^{-6}, 50) \right)$ using 5 initializations. \textcolor{red}{Initialization of state moments, regime probabilities, and parameter starting values follows the conventions described in Section~\ref{sec:emp}.} If $\Delta \log f(\bm{Y}_1 | \Theta_{k}) < 10^{-4}$ continues 20 steps in a row, the optimization is terminated (see Equation \ref{conv}). \textcolor{red}{Depending on the condition, the first 25 or 50 time points were used to estimate the parameters, and the subsequent 10 time points ($t=26,\ldots,35$ for $\mathcal{D}_{50,25}$ and $\mathcal{D}_{100,25}$; $t=51,\ldots,60$ for $\mathcal{D}_{50,50}$ and $\mathcal{D}_{100,50}$) were used to evaluate the out-of-sample forecasting performance, consistent with the $N_t^{+}=10$ forecast window used in \cite{Kelava2022}.}
+
+For evaluation, first, we investigated the \textit{accuracy}, \textit{sensitivity} and \textit{specificity} for the prediction of the underlying regime memberships. We distinguished the performance within the observed data ($t=1,\ldots,\textcolor{red}{25}$ or $\textcolor{red}{1,\ldots,50}$) and the forecast data ($t=\textcolor{red}{26,\ldots,35}$ or $\textcolor{red}{51,\ldots,60}$). Second, a score function is used to evaluate the forecast of the dynamic latent factors by
+\begin{equation}
+    \delta_{t} = \frac{1}{N} \sum_{i} \sum_{j} (\hat{\eta}_{itj} - \eta_{itj})^{2}, \hspace{10pt} i=1,\ldots,N,  \hspace{5pt} j=1,2
+\end{equation}
+for each forecast time point \citep[cf.,][]{Gneiting2011}. Third, our parameter estimation was evaluated in terms of the bias compared to the true values, standard deviation of estimates across replications, and RMSE.
+
+\subsection{Forecasting results}
+
+\textit{Parameter estimation} Tables \ref{tab:sim_params_ms}, \ref{tab:sim_params_sm}, and \ref{tab:sim_params_mm} summarize the results (see appendix). For measurement model parameters ($\bm{R}_1$), bias and RMSE were negligible ($\leq 0.006$ and $\leq 0.016$, respectively) across all four conditions, indicating stable recovery regardless of $N$ or $N_{\text{train}}$. For within-person dynamics, the regime-1 autoregressive coefficients ($\text{diag}(\bm{B}_{31})$) showed moderate negative bias across conditions (Bias $\approx -0.06$ to $-0.12$, RMSE $\approx 0.16$--$0.34$), with some improvement at larger $N$. The regime-2 coefficients ($\text{diag}(\bm{B}_{32})$) showed a consistent positive bias (Bias $\approx 0.05$--$0.10$, RMSE $\approx 0.07$--$0.15$) that was largely stable across conditions. The Markov-switching sensitivity parameters $\gamma_1$ and $\gamma_2$ showed large bias across all conditions ($|\text{Bias}| \approx 2.9$--$3.8$ for $\gamma_1$; $|\text{Bias}| \leq 1.8$ for $\gamma_2$), reflecting the inherent difficulty of estimating large-valued sensitivity parameters with moderate sample sizes. The between-person variance parameters ($\bm{R}_2$, $P_2$) showed a systematic upward bias across all conditions (bias for $P_2 \approx 0.52$--$0.69$), consistent with known identifiability challenges when the between-level variance is estimated jointly with the within-level dynamics.
+
+\textit{Regime membership}
+Table \ref{tab:sim_metrics} summarizes the performance of regime-switching predictions. Observed accuracy ranged from 41\% to 44\% across conditions, with forecast accuracy somewhat higher in the $N_{\text{train}}=50$ conditions ($\mathcal{D}_{50,50}$: 51\%; $\mathcal{D}_{100,50}$: 53\%) than in the $N_{\text{train}}=25$ conditions ($\mathcal{D}_{50,25}$: 42\%; $\mathcal{D}_{100,25}$: 45\%). Sensitivity was uniformly high across all conditions ($80\%$--$89\%$ observed; $83\%$--$93\%$ forecast), while specificity was correspondingly low ($29\%$--$38\%$ observed; $20\%$--$29\%$ forecast). This pattern indicates that the classifier consistently identifies regime~2 (the Rubicon state) but at the cost of many false positives, with longer training intervals further increasing sensitivity at the expense of specificity. All conditions converged in 100\% of replications.
+
+\begin{table}[H]
+    \centering
+    \caption{Accuracy, sensitivity, and specificity for regime prediction across the four simulation conditions. ``Observed'' refers to the training interval and ``Forecast'' to the 10-point forecast window}
+    \label{tab:sim_metrics}
+    \begin{tabular}{@{}lllllllll@{}}              \toprule
+        \textbf{Data} & \multicolumn{2}{l}{\textbf{Accuracy}} & & \multicolumn{2}{l}{\textbf{Sensitivity}} & & \multicolumn{2}{l}{\textbf{Specificity}} \\ \cline{2-3} \cline{5-6}
+        \cline{8-9} & Observed & Forecast & & Observed & Forecast & &
+        Observed & Forecast \\
+        \midrule
+        $\mathcal{D}_{50,25}$
+        & 0.414 & 0.425 & & 0.803 & 0.831 & & 0.355 & 0.267 \\
+        $\mathcal{D}_{100,25}$
+        & 0.441 & 0.452 & & 0.808 & 0.839 & & 0.383 & 0.290 \\
+        $\mathcal{D}_{50,50}$
+        & 0.425 & 0.511 & & 0.851 & 0.878 & & 0.301 & 0.225 \\
+        $\mathcal{D}_{100,50}$
+        & 0.436 & 0.535 & & 0.889 & 0.932 & & 0.292 & 0.201 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\textit{Dynamic latent variables}
+The score function $\delta_t$ measures the mean squared distance between predicted and true factor scores at each forecast time point. Figure \ref{fig:sim_score} presents the score function trajectories across the forecast interval for all four conditions. Conditions with longer training length ($N_{\text{train}}=50$) yielded lower $\delta_t$ values early in the forecast window than conditions with $N_{\text{train}}=25$, indicating more accurate latent factor forecasts at short horizons. The effect of sample size $N$ was smaller by comparison.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{plots/sim_score_overlay.png}
+    \caption{Score function $\delta_t$ across the 10-point forecast window under the four simulation conditions ($2 \times 2$ factorial design: $N \in \{50, 100\}$ and $N_{\text{train}} \in \{25, 50\}$). Lines show condition means; shaded regions indicate $\pm 1$ SD across replications}
+    \label{fig:sim_score}
+\end{figure}

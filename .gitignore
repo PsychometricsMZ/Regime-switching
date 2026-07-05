@@ -46,3 +46,4 @@ psychometrika_revision/
 *.bbl
 *.blg
 References/
+.claude/
