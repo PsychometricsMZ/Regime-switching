@@ -120,7 +120,7 @@ def run_one_simulation(args):
                     two_stage_damping=config["TWO_STAGE_DAMPING"],
                     fix_gamma3=False,
                     fix_gamma4=False,
-                    fix_gamma1=True,
+                    fix_gamma1=False,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
                     gamma3_fixed_value=gamma3_fixed_value,
@@ -255,6 +255,22 @@ def main():
 
     max_workers = min(16, os.cpu_count() or 1)
     print("Using workers:", max_workers)
+
+    # --- SLURM job-array support -------------------------------------------------
+    # Set SLURM_ARRAY_TASK_ID (or SIM_COND_IDX) to 0..3 to run a SINGLE (N, NT_TRAIN)
+    # condition from the 2x2 grid, so the four conditions execute as independent array
+    # tasks (each ~1/4 of the work, avoiding the 12h wall-time TIMEOUT). Output pkls are
+    # named per condition, so the tasks do not collide; summarise afterwards over all pkls.
+    _combos = [(N, NT) for N in config["N_CONDITIONS"] for NT in config["NT_TRAIN"]]
+    _idx_env = os.environ.get("SIM_COND_IDX", os.environ.get("SLURM_ARRAY_TASK_ID"))
+    if _idx_env not in (None, ""):
+        _idx = int(_idx_env)
+        if not (0 <= _idx < len(_combos)):
+            raise SystemExit(f"condition index {_idx} out of range 0..{len(_combos) - 1}")
+        _N, _NT = _combos[_idx]
+        config["N_CONDITIONS"] = [_N]
+        config["NT_TRAIN"] = [_NT]
+        print(f"[job-array] task {_idx}: running only condition N={_N}, NT_TRAIN={_NT}")
 
     # Psychometrika revision: compare filtering methods over the 2x2 factorial.
     for method in config["FILTER_METHODS"]:

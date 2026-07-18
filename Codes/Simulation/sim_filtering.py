@@ -13,6 +13,9 @@ from scipy.stats import truncnorm
 
 GAMMA1_FIXED = 4.5951      # logit(0.99) = log(99); fixed for identification
                             # Enforces P(regime 1 at t=0) ≈ 0.99 (Rubicon prior)
+B3_CLIP      = 0.95        # stationarity clip for the AR diagonal in the model-implied
+                            # initial mean/covariance (Assumption 4: |(B3is)_jj| < 1); keeps
+                            # (I-B3)^{-1} finite near the unit-root boundary during optimisation.
 
 
 def torch_diag_from_vector(x):
@@ -112,8 +115,9 @@ def _forward_filter_pass_two_stage(
     # ------------------------------------------------------------------
     # Initialization (U1-dimensional state, no augmentation)
     # ------------------------------------------------------------------
-    mEta_0 = torch.zeros((N, 2, U1), device=device, dtype=dtype)
-    mP_0 = safe_eye(U1, device=device, dtype=dtype).unsqueeze(0).unsqueeze(0).repeat(N, 2, 1, 1)
+    # mEta_0 (stationary initial mean) and mP_0 (stationary initial covariance) are the
+    # model-implied initialisation; both are computed below, after B1_is, Q1 and B3_is
+    # are defined (the AR diagonal is clipped to the stationary region there).
 
     mPr_pred_0 = torch.full((N, 2), float("nan"), device=device, dtype=dtype)
     mPr_filtered_0 = torch.full((N, 2), float("nan"), device=device, dtype=dtype)
@@ -163,6 +167,19 @@ def _forward_filter_pass_two_stage(
     B3_is = B3_s_diag.unsqueeze(0) + B4_s_diag.unsqueeze(0) * eta2_expanded_B3B4
     B3_is_T = B3_is.transpose(-1, -2)
 
+    # Model-implied stationary initialisation (diagonal B3, Q1; Harvey 1990; Du Toit & Browne 2007).
+    # The AR diagonal is clipped to the stationary region |b_jj| <= B3_CLIP (Assumption 4) so that
+    # both the implied mean and covariance stay finite near the unit-root boundary; clipping affects
+    # only the initial-condition prior, not the AR dynamics.
+    _b0      = torch.diagonal(B3_is, dim1=-2, dim2=-1)          # (N, 2, U1)  AR diagonal
+    _b0_clip = torch.clamp(_b0, min=-B3_CLIP, max=B3_CLIP)
+    _q0      = torch.diagonal(Q1).unsqueeze(0).unsqueeze(0)     # (1, 1, U1)
+    # stationary mean:  mu_jj = b_{1,jj} / (1 - b_jj)
+    mEta_0 = B1_is / (1.0 - _b0_clip)                           # (N, 2, U1)
+    # stationary covariance:  Sigma_jj = Q1_jj / (1 - b_jj^2)
+    _var0 = _q0 / (1.0 - _b0_clip**2)                           # bounded since |b_clip| <= B3_CLIP < 1
+    mP_0 = torch.diag_embed(_var0).clone()
+
     P12 = (torch.tensor(p12_fixed_value, dtype=dtype, device=device)
           if fix_p12
           else torch.sigmoid(theta["logit_P12_b"]))
@@ -171,8 +188,9 @@ def _forward_filter_pass_two_stage(
     # mu1i1 = (I - B3_i1)^{-1} B1_i1  (N, U1)
     # Since the transition P(S_t=1|S_{t-1}=1) conditions on regime 1, we use
     # the regime-1 conditional filtered estimate centered at its stationary mean.
-    I_minus_B3i1 = safe_eye(U1, device, dtype).unsqueeze(0) - B3_is[:, 0, :, :]   # (N, U1, U1)
-    mu1i1 = torch.linalg.solve(I_minus_B3i1, B1_is[:, 0, :].unsqueeze(-1)).squeeze(-1)  # (N, U1)
+    # regime-1 stationary mean: mu1i1_j = b_{1,0,j} / (1 - b_{0,jj}) (B3 diagonal), with the AR
+    # diagonal clipped to the stationary region (Assumption 4) so it stays finite near unit root.
+    mu1i1 = B1_is[:, 0, :] / (1.0 - _b0_clip[:, 0, :])   # (N, U1)
 
     # ------------------------------------------------------------------
     # History lists
