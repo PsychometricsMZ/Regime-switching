@@ -7,7 +7,7 @@ _HERE = Path(__file__).resolve().parent
 config = {}
 
 # --- File Paths ---
-config["true_params_file"] = _HERE / "parameter_estimates_loaded.csv"
+config["true_params_file"] = _HERE / "parameter_estimates_kelava.csv"
 config["sim_init_path"]    = _HERE / "kelava_init_params_sim.csv"
 config["output_dir"] = _HERE / "output"
 
