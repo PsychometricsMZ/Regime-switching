@@ -49,8 +49,8 @@ def parse_args():
         help="Directory to write summary CSVs (default: sim_summary/)"
     )
     parser.add_argument(
-        "--true_params_file", type=str, default="parameter_estimates_loaded.csv",
-        help="CSV with true parameter values used as DGP (default: parameter_estimates_loaded.csv)"
+        "--true_params_file", type=str, default="parameter_estimates_kelava.csv",
+        help="CSV with true parameter values used as DGP (default: parameter_estimates_kelava.csv)"
     )
     return parser.parse_args()
 

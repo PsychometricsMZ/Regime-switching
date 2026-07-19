@@ -1,8 +1,0 @@
-Parameter,Idx,True_Value,"$\mathcal{D}_{50,25}$ Bias","$\mathcal{D}_{50,25}$ RMSE","$\mathcal{D}_{100,25}$ Bias","$\mathcal{D}_{100,25}$ RMSE","$\mathcal{D}_{50,50}$ Bias","$\mathcal{D}_{50,50}$ RMSE","$\mathcal{D}_{100,50}$ Bias","$\mathcal{D}_{100,50}$ RMSE"
-$\gamma_1$,1,4.5951,-0.99,2.6904,NA,NA,NA,NA,NA,NA
-$\gamma_2$,1,-1.2536,1.5838,2.6231,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_3$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_3$,2,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_4$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
-$\bm{\gamma}_4$,2,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA
-$P_{12}$,1,0.0,0.0,0.0,NA,NA,NA,NA,NA,NA

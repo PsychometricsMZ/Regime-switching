@@ -26,7 +26,8 @@ from pathlib import Path
 _cfg = types.ModuleType("config")
 _cfg.config = {}
 
-_cfg.config["true_params_file"] = Path("parameter_estimates_loaded.csv")
+_cfg.config["true_params_file"] = Path("parameter_estimates_kelava.csv")
+_cfg.config["sim_init_path"]    = Path("kelava_init_params_sim.csv")
 _cfg.config["output_dir"]       = Path("output_test")
 
 _cfg.config["N_CONDITIONS"]          = [50]
