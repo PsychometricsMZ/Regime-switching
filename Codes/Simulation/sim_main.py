@@ -3,6 +3,7 @@
 import os
 import gc
 import pickle
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
@@ -75,6 +76,15 @@ def calculate_metrics(true_vec, pred_vec, prefix):
     return df
 
 
+# --- Reduced-model switch -----------------------------------------------------
+# SIM_REDUCED=1 estimates the model with the within-person transition predictors
+# removed (gamma3 = gamma4 = 0 held fixed), i.e. the transition depends only on the
+# between-person factor. The data-generating process is unchanged (it always uses the
+# true, non-zero gamma3/gamma4 from the truth file), so this yields a deliberately
+# misspecified estimator for comparison with the full specification.
+_REDUCED = os.environ.get("SIM_REDUCED", "") not in ("", "0")
+
+
 def run_one_simulation(args):
     i, method, N_val, n_train_val, true_params, config, device, sim_prior, gamma3_fixed_value, gamma4_fixed_value = args
 
@@ -118,8 +128,8 @@ def run_one_simulation(args):
                     method=method,
                     two_stage_outer_loops=config["TWO_STAGE_OUTER_LOOPS"],
                     two_stage_damping=config["TWO_STAGE_DAMPING"],
-                    fix_gamma3=False,
-                    fix_gamma4=False,
+                    fix_gamma3=_REDUCED,
+                    fix_gamma4=_REDUCED,
                     fix_gamma1=False,
                     fix_p12=True,
                     p12_fixed_value=1e-12,
@@ -249,6 +259,16 @@ def main():
     gamma4_fixed_value = np.array([true_params[f"gamma4_{k}"] for k in range(1, U1_sim + 1)])
     print(f"gamma3_fixed_value: {gamma3_fixed_value}")
     print(f"gamma4_fixed_value: {gamma4_fixed_value}")
+
+    # --- Reduced model: hold gamma3 = gamma4 = 0 in the ESTIMATOR only -----------
+    # (the DGP above keeps the true non-zero values, so the estimator is misspecified)
+    if _REDUCED:
+        gamma3_fixed_value = np.zeros(U1_sim)
+        gamma4_fixed_value = np.zeros(U1_sim)
+        config["output_dir"] = Path(str(config["output_dir"]) + "_reduced")
+        config["output_dir"].mkdir(parents=True, exist_ok=True)
+        print(f"[reduced] gamma3/gamma4 fixed to 0 in the estimator; "
+              f"output -> {config['output_dir']}")
 
     sim_prior = load_sim_prior(config["sim_init_path"])
     print(f"Kelava sim_prior loaded: {len(sim_prior)} parameter groups")
