@@ -1,0 +1,5 @@
+Condition,Obs_Accuracy_full,Obs_Accuracy_reduced,Obs_Accuracy_diff_pp,Fore_Accuracy_full,Fore_Accuracy_reduced,Fore_Accuracy_diff_pp,Obs_Sensitivity_full,Obs_Sensitivity_reduced,Obs_Sensitivity_diff_pp,Fore_Sensitivity_full,Fore_Sensitivity_reduced,Fore_Sensitivity_diff_pp,Obs_Specificity_full,Obs_Specificity_reduced,Obs_Specificity_diff_pp,Fore_Specificity_full,Fore_Specificity_reduced,Fore_Specificity_diff_pp
+"D50,25",0.6636,0.6473,1.63,0.7592,0.7454,1.38,0.7288,0.7248,0.4,0.7691,0.7556,1.35,0.431,0.3779,5.31,0.3499,0.2976,5.23
+"D100,25",0.6719,0.6668,0.51,0.7776,0.7817,-0.41,0.7505,0.765,-1.45,0.791,0.7949,-0.39,0.371,0.2975,7.35,0.2635,0.2469,1.66
+"D50,50",0.6909,0.6445,4.64,0.7545,0.7067,4.78,0.7239,0.6686,5.53,0.7561,0.7082,4.79,0.4389,0.4839,-4.5,0.3333,0.381,-4.77
+"D100,50",0.6863,0.6722,1.41,0.7582,0.7349,2.33,0.7164,0.7039,1.25,0.7611,0.738,2.31,0.4472,0.4279,1.93,0.3203,0.3054,1.49

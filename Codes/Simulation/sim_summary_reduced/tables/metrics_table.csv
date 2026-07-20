@@ -1,0 +1,5 @@
+Condition,N,Ntrain,Obs_Accuracy,Fore_Accuracy,Obs_Sensitivity,Fore_Sensitivity,Obs_Specificity,Fore_Specificity
+"$\mathcal{D}_{50,25}$",50,25,0.6473,0.7454,0.7248,0.7556,0.3779,0.2976
+"$\mathcal{D}_{100,25}$",100,25,0.6668,0.7817,0.765,0.7949,0.2975,0.2469
+"$\mathcal{D}_{50,50}$",50,50,0.6445,0.7067,0.6686,0.7082,0.4839,0.381
+"$\mathcal{D}_{100,50}$",100,50,0.6722,0.7349,0.7039,0.738,0.4279,0.3054
