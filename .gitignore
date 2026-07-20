@@ -22,6 +22,7 @@ Codes/Empirical/
 Codes/trash/
 Codes/regime_sim/
 Codes/Simulation/output/
+Codes/Simulation/output_reduced/
 Codes/Simulation/logs/
 Codes/Simulation/R/
 Codes/Simulation/check_results_output.txt
@@ -29,6 +30,9 @@ Codes/Simulation/teminal_log.txt
 
 # Manuscript / revision materials (local only)
 psychometrika_revision/
+
+# Conference talks (local only)
+IMPS2026_talk/
 
 # Large / sensitive data files
 *.npz
