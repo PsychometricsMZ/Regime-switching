@@ -268,6 +268,13 @@ def build_metrics_table(summaries: dict[str, pd.DataFrame]) -> pd.DataFrame:
         "Fore_Sensitivity": "Mean_Forecast_Sensitivity",
         "Obs_Specificity":  "Mean_Observed_Specificity",
         "Fore_Specificity": "Mean_Forecast_Specificity",
+        # Class composition and the constant-predictor benchmark. Accuracy cannot
+        # be read without these: regime 2 accumulates under the near-absorbing
+        # structure, so the majority-class rate differs across conditions.
+        "Obs_Regime2_Share":   "Mean_Observed_Regime2_Share",
+        "Fore_Regime2_Share":  "Mean_Forecast_Regime2_Share",
+        "Obs_Majority_Acc":    "Mean_Observed_Majority_Accuracy",
+        "Fore_Majority_Acc":   "Mean_Forecast_Majority_Accuracy",
     }
     rows = []
     for cond in CONDITIONS:
@@ -286,6 +293,18 @@ def build_metrics_table(summaries: dict[str, pd.DataFrame]) -> pd.DataFrame:
                     row[display_col] = round(float(vals.iloc[0]), 4) if len(vals) > 0 else np.nan
                 else:
                     row[display_col] = np.nan
+
+        # Balanced accuracy = (sensitivity + specificity) / 2. Unlike plain
+        # accuracy it is invariant to the class composition, and a constant
+        # predictor scores exactly 0.50 whatever the base rate. It is therefore
+        # the metric that can be compared across conditions here.
+        for pre in ("Obs", "Fore"):
+            se, sp = row.get(f"{pre}_Sensitivity"), row.get(f"{pre}_Specificity")
+            row[f"{pre}_Balanced_Acc"] = (
+                round((se + sp) / 2, 4)
+                if se is not None and sp is not None
+                and np.isfinite(se) and np.isfinite(sp) else np.nan
+            )
         rows.append(row)
     return pd.DataFrame(rows)
 

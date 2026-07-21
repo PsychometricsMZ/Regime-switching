@@ -1,5 +1,5 @@
 Parameter,Estimate,SE,CI_Lower,CI_Upper,P_Value,Z_Score,Type,Pretty_Parameter,Parameter_Label,SD
-gamma1,3.5,0.55,,,,,Kelava,gamma1,gamma1,0.55
+gamma1,1.48,0.55,,,,,Kelava,gamma1,gamma1,0.55
 gamma2,-1.17,0.79,,,,,Kelava,gamma2,gamma2,0.79
 gamma3_1,-0.1,0.34,,,,,Kelava,gamma3_1,gamma3_1,0.34
 gamma3_2,0.26,0.33,,,,,Kelava,gamma3_2,gamma3_2,0.33
