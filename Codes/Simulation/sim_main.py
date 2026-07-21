@@ -65,12 +65,21 @@ def calculate_metrics(true_vec, pred_vec, prefix):
         else np.nan
     )
 
+    # Share of regime-2 person-time points, and the accuracy a constant
+    # majority-class predictor would achieve. Both are needed to read the
+    # classification metrics: under a near-absorbing regime 2 the class
+    # composition shifts with the observation window.
+    base_rate = float(np.mean(true_vec))
+    majority_acc = max(base_rate, 1.0 - base_rate)
+
     df = pd.DataFrame({
         "Accuracy": [accuracy],
         "Sensitivity": [sensitivity],
         "Specificity": [specificity],
         "Precision": [precision],
-        "F1_Score": [f1_score]
+        "F1_Score": [f1_score],
+        "Regime2_Share": [base_rate],
+        "Majority_Accuracy": [majority_acc]
     })
     df.columns = [f"{prefix}{col}" for col in df.columns]
     return df
@@ -269,6 +278,14 @@ def main():
         config["output_dir"].mkdir(parents=True, exist_ok=True)
         print(f"[reduced] gamma3/gamma4 fixed to 0 in the estimator; "
               f"output -> {config['output_dir']}")
+
+    # --- Optional output suffix, so a variant run never overwrites an existing one.
+    # e.g. SIM_TAG=g35  ->  output_g35/
+    _tag = os.environ.get("SIM_TAG", "").strip()
+    if _tag:
+        config["output_dir"] = Path(str(config["output_dir"]) + "_" + _tag)
+        config["output_dir"].mkdir(parents=True, exist_ok=True)
+        print(f"[tag={_tag}] output -> {config['output_dir']}")
 
     sim_prior = load_sim_prior(config["sim_init_path"])
     print(f"Kelava sim_prior loaded: {len(sim_prior)} parameter groups")
