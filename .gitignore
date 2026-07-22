@@ -23,6 +23,8 @@ Codes/trash/
 Codes/regime_sim/
 Codes/Simulation/output/
 Codes/Simulation/output_reduced/
+Codes/Simulation/output_g35/
+Codes/Simulation/output_reduced_g35/
 Codes/Simulation/logs/
 Codes/Simulation/R/
 Codes/Simulation/check_results_output.txt
