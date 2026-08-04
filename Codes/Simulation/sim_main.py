@@ -14,6 +14,16 @@ from sim_utils import load_true_parameters2
 from sim_data_generation import generate_sim_data
 from sim_filtering import filtering
 
+# --- Integrated-estimator switch ----------------------------------------------
+# SIM_INTEGRATED=1 replaces the two-stage estimator with the integrated
+# (marginalized) estimator: zeta_{2i} carried in the state vector with its
+# proper N(0, Q2) prior, Q2 estimated by ML (see sim_filtering_integrated.py).
+# The DGP and everything else are unchanged. Output dir gets "_integrated".
+_INTEGRATED = os.environ.get("SIM_INTEGRATED", "") not in ("", "0")
+if _INTEGRATED:
+    from sim_filtering_integrated import filtering_integrated
+    filtering = filtering_integrated
+
 
 def load_sim_prior(csv_path):
     """Load Kelava warm-start priors from CSV.
@@ -277,6 +287,13 @@ def main():
         config["output_dir"] = Path(str(config["output_dir"]) + "_reduced")
         config["output_dir"].mkdir(parents=True, exist_ok=True)
         print(f"[reduced] gamma3/gamma4 fixed to 0 in the estimator; "
+              f"output -> {config['output_dir']}")
+
+    # --- Integrated estimator: separate output dir ------------------------------
+    if _INTEGRATED:
+        config["output_dir"] = Path(str(config["output_dir"]) + "_integrated")
+        config["output_dir"].mkdir(parents=True, exist_ok=True)
+        print(f"[integrated] zeta2 marginalized in state, Q2 estimated by ML; "
               f"output -> {config['output_dir']}")
 
     # --- Optional output suffix, so a variant run never overwrites an existing one.

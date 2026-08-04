@@ -70,6 +70,12 @@ if __name__ == "__main__":
     import sim_main
     sim_main.main()
 
+    # sim_main.main() may append a suffix to the output dir (_integrated,
+    # _reduced, _<SIM_TAG>). config is the shared dict injected above, so
+    # re-read it here; otherwise Steps 2-3 look in the un-suffixed dir and
+    # find no pkls (e.g. SIM_INTEGRATED=1 writes to output_test_integrated/).
+    test_output_dir = _cfg.config["output_dir"]
+
     # Step 2: sim_summarize
     print("\n" + "=" * 60)
     print("STEP 2: Running sim_summarize")
