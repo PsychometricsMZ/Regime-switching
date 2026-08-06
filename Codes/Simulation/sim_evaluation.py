@@ -367,10 +367,10 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
     """
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
     labels = {
-        "two_stage_N50_Ntrain25":  r"$N=50,\ T_{\rm train}=25$",
-        "two_stage_N100_Ntrain25": r"$N=100,\ T_{\rm train}=25$",
-        "two_stage_N50_Ntrain50":  r"$N=50,\ T_{\rm train}=50$",
-        "two_stage_N100_Ntrain50": r"$N=100,\ T_{\rm train}=50$",
+        "two_stage_N50_Ntrain25":  r"$N=50,\ T_{\rm est}=25$",
+        "two_stage_N100_Ntrain25": r"$N=100,\ T_{\rm est}=25$",
+        "two_stage_N50_Ntrain50":  r"$N=50,\ T_{\rm est}=50$",
+        "two_stage_N100_Ntrain50": r"$N=100,\ T_{\rm est}=50$",
     }
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
@@ -392,6 +392,9 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
         ax.plot(t, mean - sd, color=color, linewidth=0.8, linestyle=":",
                 alpha=0.7)
 
+    # Truncate the vertical axis for legibility (the +1 SD line of
+    # N=100, T_est=25 reaches 0.077 at the final step; noted in the caption).
+    ax.set_ylim(0.042, 0.066)
     ax.set_xlabel("Forecast step", fontsize=11)
     ax.set_ylabel(r"Score function $\delta_t$", fontsize=11)
     ax.spines["top"].set_visible(False)
