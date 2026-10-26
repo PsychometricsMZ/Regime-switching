@@ -4,8 +4,9 @@ Regenerate the LaTeX bodies for Appendix D (Tables D1-D4) from a summary directo
 Writes four .tex fragments containing only the tabular rows, so they can be pasted
 into A4. simulation.tex without touching the surrounding table environments.
 
-Run from Codes/Simulation:
-    python make_appendix_tables.py sim_summary_g35
+Run from Codes/Simulation (defaults = production run used in the manuscript):
+    python make_appendix_tables.py
+    python make_appendix_tables.py <summary_dir> <out_dir>
 """
 import sys
 from pathlib import Path
@@ -13,8 +14,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-SUMMARY_DIR = Path(sys.argv[1] if len(sys.argv) > 1 else "sim_summary_g35")
-OUT_DIR = Path("comparison/appendix_tex")
+SUMMARY_DIR = Path(sys.argv[1] if len(sys.argv) > 1 else "sim_summary_integrated_g35_uncent")
+OUT_DIR = Path(sys.argv[2] if len(sys.argv) > 2 else "comparison/appendix_tex_uncent")
 CONDS = ["N50_Ntrain25", "N100_Ntrain25", "N50_Ntrain50", "N100_Ntrain50"]
 
 # (regex on Parameter, pretty LaTeX name, index shown)
@@ -87,7 +88,7 @@ def main():
     for tag, groups in [("ms", GROUPS_MS), ("sm", GROUPS_SM), ("mm", GROUPS_MM)]:
         body = "\n".join(rows_for(F, groups))
         (OUT_DIR / f"D_{tag}.tex").write_text(body + "\n", encoding="utf-8", newline="")
-        print(f"  wrote comparison/appendix_tex/D_{tag}.tex  ({len(body.splitlines())} rows)")
+        print(f"  wrote {OUT_DIR}/D_{tag}.tex  ({len(body.splitlines())} rows)")
     # Power table: different layout (one row per parameter, index folded into the
     # symbol, section headers, no Idx column, parameters with undefined power omitted)
     POWER_SECTIONS = [
@@ -126,7 +127,7 @@ def main():
             lines.append(f"        {pretty} & {fmt(float(tv.iloc[0]))} & " + " & ".join(cells) + r" \\")
     body = "\n".join(lines)
     (OUT_DIR / "D_power.tex").write_text(body + "\n", encoding="utf-8", newline="")
-    print(f"  wrote comparison/appendix_tex/D_power.tex  ({len(lines)} lines)")
+    print(f"  wrote {OUT_DIR}/D_power.tex  ({len(lines)} lines)")
 
 
 if __name__ == "__main__":

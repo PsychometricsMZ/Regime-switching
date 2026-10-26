@@ -20,14 +20,15 @@ Regime-switching/
     └── Simulation/
         ├── sim_main.py                     # Main entry point (parallel simulation loop)
         ├── sim_filtering_integrated.py     # Integrated (marginal ML) extended Kim filter — estimator used in the manuscript
-        ├── sim_filtering.py                # Earlier non-marginalized variant (retained for reference; not used in the manuscript)
+        ├── sim_filtering.py                # Shared filter building blocks (imported by sim_filtering_integrated.py); also holds the earlier non-marginalized estimator, which the manuscript does not use
         ├── sim_data_generation.py          # Synthetic data generation
         ├── sim_summarize.py                # Aggregation and summary statistics
         ├── sim_evaluation.py               # Evaluation metrics, tables, and figures
         ├── sim_utils.py                    # Utility functions
         ├── config.py                       # Simulation configuration
         ├── calibrate_gamma1.py             # Data-only grid search used to choose gamma1 = 3.50
-        ├── make_appendix_tables.py         # Regenerates LaTeX bodies for the appendix tables
+        ├── make_appendix_tables.py         # Regenerates LaTeX bodies for the appendix tables (defaults: production run -> comparison/appendix_tex_uncent/)
+        ├── make_full_vs_reduced.py         # Regenerates comparison/full_vs_reduced_metrics.csv from the production summaries
         ├── make_talk_score_overlay.py      # Score-function overlay figure for talks
         ├── run_test.py                     # Small smoke test (local or cluster)
         ├── parameter_estimates_kelava.csv  # Population (true) values from Kelava et al. (2022)
@@ -37,15 +38,14 @@ Regime-switching/
         ├── submit_sim_integrated.sh        # SLURM array job: integrated estimator (centered variant)
         ├── submit_sim_uncentered.sh        # SLURM array job: integrated + uncentered — the production run
         ├── submit_sim_reduced_integrated.sh# SLURM array job: restricted model (gamma3 = gamma4 = 0)
-        ├── submit_sim_g35.sh               # SLURM array job: legacy non-marginalized run (superseded)
         ├── submit_test.sh                  # SLURM job: smoke test
         ├── submit_postprocess.sh           # SLURM job: postprocessing
         ├── comparison/                     # Full vs. restricted metrics, gamma1 calibration, appendix .tex bodies
-        │   └── appendix_tex_uncent/        #   final appendix bodies used in the manuscript
+        │   ├── appendix_tex_uncent/        #   final appendix bodies used in the manuscript
+        │   └── appendix_tex_integrated/    #   centered-variant bodies (verification)
         ├── sim_summary_integrated_g35_uncent/   # PRODUCTION summaries (Section 6 tables and figures)
-        ├── sim_summary_reduced_integrated_g35/  # restricted-model summaries (Section 6.4)
-        ├── sim_summary_integrated_g35/          # integrated, centered variant (verification run)
-        └── sim_summary_g35/                     # legacy non-marginalized summaries (superseded)
+        ├── sim_summary_reduced_integrated_g35/  # restricted-model summaries (Section 6.4; summary CSVs only)
+        └── sim_summary_integrated_g35/          # integrated, centered variant (verification run)
 ```
 
 ## Simulation Design
@@ -74,7 +74,7 @@ All read by `sim_main.py` / `sim_filtering_integrated.py`; the submit scripts se
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SIM_INTEGRATED` | 0 | 1 = integrated (marginal ML) estimator (`sim_filtering_integrated.py`); 0 = legacy non-marginalized variant |
+| `SIM_INTEGRATED` | 0 | 1 = integrated (marginal ML) estimator (`sim_filtering_integrated.py`), used for all manuscript results; 0 = earlier non-marginalized variant in `sim_filtering.py` (not used in the manuscript) |
 | `CENTER_MS_PREDICTOR` | 1 | 0 = raw (uncentered) transition predictor — used for all manuscript results |
 | `SIM_REDUCED` | 0 | 1 = restricted estimator (gamma3 = gamma4 = 0); appends `_reduced` to the output directory |
 | `SIM_TAG` | (empty) | Output directory suffix, e.g. `g35_uncent` -> `output_integrated_g35_uncent/` |
@@ -119,6 +119,8 @@ pip install -r requirements.txt
 SIM_INTEGRATED=1 CENTER_MS_PREDICTOR=0 SIM_TAG=g35_uncent python sim_main.py
 python sim_summarize.py --output_dir output_integrated_g35_uncent
 python sim_evaluation.py
+python make_appendix_tables.py      # appendix table bodies -> comparison/appendix_tex_uncent/
+python make_full_vs_reduced.py      # full vs. restricted metrics -> comparison/full_vs_reduced_metrics.csv
 ```
 
 ## Output
@@ -136,7 +138,7 @@ Note: the `two_stage` prefix in output file names is a legacy naming artifact of
 Summary tables and figures (synced):
 
 ```
-sim_summary_integrated_g35_uncent/  # production (restricted-run directory analogous)
+sim_summary_integrated_g35_uncent/  # production (the restricted-run directory holds the CSVs only)
 ├── sim_summary_all.csv
 ├── sim_summary_two_stage_N<N>_Ntrain<T>.csv
 ├── init_params_two_stage_N<N>_Ntrain<T>.csv
@@ -154,11 +156,10 @@ Comparison artifacts (synced):
 
 ```
 comparison/
-├── full_vs_reduced_metrics.csv   # sensitivity/specificity, full vs. restricted
+├── full_vs_reduced_metrics.csv   # accuracy/sensitivity/specificity, full vs. restricted (make_full_vs_reduced.py)
 ├── gamma1_calibration.csv        # regime-2 proportions across the gamma1 grid
-├── appendix_tex_uncent/          # final appendix table bodies (manuscript)
-├── appendix_tex_integrated/      # centered-variant bodies (verification)
-└── appendix_tex/                 # legacy bodies (superseded)
+├── appendix_tex_uncent/          # final appendix table bodies (manuscript; make_appendix_tables.py)
+└── appendix_tex_integrated/      # centered-variant bodies (verification)
 ```
 
 ## Notes
@@ -166,5 +167,6 @@ comparison/
 - `Codes/Empirical/` is local only (not on GitHub) — contains empirical analysis scripts and data
 - `psychometrika_revision/` and `IMPS2026_talk/` are local only — the manuscript is managed via Overleaf
 - `output_*` (pkl) and `logs/` are excluded from git
-- The centered integrated runs (`sim_summary_integrated_g35/`) and the legacy non-marginalized runs (`sim_summary_g35/`) are retained for provenance; all manuscript numbers come from `sim_summary_integrated_g35_uncent/` and `sim_summary_reduced_integrated_g35/`
+- The centered integrated run (`sim_summary_integrated_g35/`) is retained as a verification run; all manuscript numbers come from `sim_summary_integrated_g35_uncent/` and `sim_summary_reduced_integrated_g35/`
+- Summaries of the earlier non-marginalized estimator were removed from the repository on 2026-10-26 (they are not referenced in the manuscript); they remain in the git history
 - The venv on bwcluster uses CPU-only PyTorch for efficiency
