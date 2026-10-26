@@ -1,13 +1,13 @@
 #!/bin/bash
-# 初回のみ実行: Python仮想環境のセットアップ
+# Run once: set up the Python virtual environment on bwHelix
 
 module load devel/python/3.13.1
 
-# 仮想環境を作成
+# Create the virtual environment
 python -m venv ~/venv_regime
 source ~/venv_regime/bin/activate
 
-# パッケージインストール（torch はCPU版を指定して軽量化）
+# Install packages (CPU-only torch keeps the environment small)
 pip install --upgrade pip
 pip install numpy pandas scipy scikit-learn matplotlib pyreadr
 pip install torch --index-url https://download.pytorch.org/whl/cpu
