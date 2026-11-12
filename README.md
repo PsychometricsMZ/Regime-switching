@@ -118,7 +118,7 @@ cd Codes/Simulation
 pip install -r requirements.txt
 SIM_INTEGRATED=1 CENTER_MS_PREDICTOR=0 SIM_TAG=g35_uncent python sim_main.py
 python sim_summarize.py --output_dir output_integrated_g35_uncent
-python sim_evaluation.py
+python sim_evaluation.py --summary_dir sim_summary_integrated_g35_uncent --output_dir output_integrated_g35_uncent --no-show
 python make_appendix_tables.py      # appendix table bodies -> comparison/appendix_tex_uncent/
 python make_full_vs_reduced.py      # full vs. restricted metrics -> comparison/full_vs_reduced_metrics.csv
 ```
@@ -149,7 +149,8 @@ sim_summary_integrated_g35_uncent/  # production (the restricted-run directory h
 │   └── metrics_table.csv    # sensitivity/specificity and power
 └── plots/
     ├── sim_score_2x2.png
-    └── sim_score_overlay.png
+    ├── sim_score_overlay.png
+    └── sim_score_overlay.pdf   # manuscript Figure 4 (vector version used in the manuscript)
 ```
 
 Comparison artifacts (synced):

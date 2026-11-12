@@ -12,6 +12,8 @@ Tables  → sim_summary/tables/
 
 Plots   → sim_summary/plots/
   5. sim_score_2x2.png        δ_t across 10-pt forecast window, 2×2 panel (±1 SD)
+  6. sim_score_overlay.png    δ_t for all 4 conditions in one panel (manuscript Figure 4)
+     sim_score_overlay.pdf    same figure as a vector PDF (the file used in the manuscript)
 
 Usage
 -----
@@ -361,9 +363,15 @@ def plot_score_function(score_fns: dict[str, np.ndarray],
 
 def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
                                 save_path: Path, show: bool = False):
-    """All 4 conditions overlaid in a single panel for direct comparison.
+    """All 4 conditions overlaid in a single panel for direct comparison
+    (manuscript Figure 4).
     Mean as solid line; SD bounds as thin dotted lines of the same colour.
-    Legend placed below the axes so it never overlaps the plot area.
+    Legend in the upper left corner of the plot area.
+    With matplotlib 3.10.9 (the version that made the published figure) and
+    the default style, the PNG is pixel-identical to the published figure;
+    with 3.11.2 the margins move by a few pixels and the content is the same.
+    Saves the PNG at save_path (200 dpi) and a vector PDF with the same name;
+    the PDF is the file used in the manuscript.
     """
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
     labels = {
@@ -373,7 +381,7 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
         "two_stage_N100_Ntrain50": r"$N=100,\ T_{\rm est}=50$",
     }
 
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+    fig, ax = plt.subplots(figsize=(9, 5.6))
 
     for (cond, color) in zip(CONDITIONS, colors):
         tag = cond["tag"]
@@ -381,30 +389,32 @@ def plot_score_function_overlay(score_fns: dict[str, np.ndarray],
             continue
         mat  = score_fns[tag]
         mean = np.nanmean(mat, axis=0)
-        sd   = np.nanstd(mat, axis=0, ddof=1)
+        sd   = np.nanstd(mat, axis=0)        # ddof=0, as in the published figure
         t    = np.arange(1, len(mean) + 1)   # relative forecast step 1..10
         # Mean line: solid, same style for all conditions, distinguished by color
-        ax.plot(t, mean, color=color, linewidth=2.0, linestyle="-",
+        ax.plot(t, mean, color=color, linewidth=2.4, linestyle="-",
                 label=labels.get(tag, tag))
         # SD bounds: dotted lines, same color
-        ax.plot(t, mean + sd, color=color, linewidth=0.8, linestyle=":",
-                alpha=0.7)
-        ax.plot(t, mean - sd, color=color, linewidth=0.8, linestyle=":",
-                alpha=0.7)
+        ax.plot(t, mean + sd, color=color, linewidth=1.0, linestyle=":",
+                alpha=0.8)
+        ax.plot(t, mean - sd, color=color, linewidth=1.0, linestyle=":",
+                alpha=0.8)
 
     # Truncate the vertical axis for legibility (the +1 SD line of
     # N=100, T_est=25 reaches 0.077 at the final step; noted in the caption).
     ax.set_ylim(0.042, 0.066)
-    ax.set_xlabel("Forecast step", fontsize=11)
-    ax.set_ylabel(r"Score function $\delta_t$", fontsize=11)
+    ax.set_xlabel("Forecast step", fontsize=12)
+    ax.set_ylabel(r"Score function $\delta_t$", fontsize=12)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    # Legend below axes, outside the plot area
-    ax.legend(fontsize=9, framealpha=0.9, loc="upper center",
-              bbox_to_anchor=(0.5, -0.18), ncol=2)
+    # Legend inside the plot area, upper left (the lines stay below it)
+    ax.legend(fontsize=10, framealpha=0.8, loc="upper left", ncol=2)
     fig.tight_layout()
-    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    fig.savefig(save_path, dpi=200)
     print(f"  Saved: {save_path}")
+    pdf_path = save_path.with_suffix(".pdf")
+    fig.savefig(pdf_path)
+    print(f"  Saved: {pdf_path}")
     if show:
         plt.show()
     plt.close(fig)
