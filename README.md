@@ -1,5 +1,11 @@
 # Regime-Switching Simulation Study
 
+## Reference
+
+Okuyama, K., Schaffland, T. F., Kilian, P., Brandt, H., & Kelava, A. (in press). Frequentist forecasting in regime-switching models with extended Hamilton filter. *Psychometrika*.
+
+The code in this repository corresponds to the accepted version of the manuscript. The arXiv preprint ([arXiv:2512.18149v1](https://arxiv.org/abs/2512.18149), December 2025) is the original submission and predates the revision; the section, figure, and table numbers cited in this README refer to the accepted version.
+
 ## Overview
 
 This repository contains Python code for the **simulation study** of a regime-switching state-space model estimated by an **integrated (marginal maximum likelihood) extended Kim filter** — the frequentist counterpart to the NDLC-SEM framework of Kelava et al. (2022). The person-specific random intercept residuals are carried in an augmented state vector and marginalized under their model-implied N(0, Q2) distribution; the variance component Q2 is estimated by maximum likelihood jointly with all other parameters (`sim_filtering_integrated.py`; Section 4.6 of the manuscript).
